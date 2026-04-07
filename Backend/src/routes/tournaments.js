@@ -30,8 +30,8 @@ export default async function tournamentRoutes(app) {
   })
 
   // POST /tournaments — создать турнир
-  app.post('/', { preHandler: requireAuth }, async (request, reply) => {
-    const { userId } = request.user
+app.post('/', async (request, reply) => {
+    const userId = request.body.organizerId
     const { title, venueName, venueAddress, dateTime, price, maxPlayers, level, description } = request.body
 
     const [tournament] = await db.insert(tournaments).values({
