@@ -6,14 +6,22 @@ import { requireAuth } from '../middleware/auth.js'
 export default async function tournamentRoutes(app) {
 
   // GET /tournaments — лента открытых турниров
-  app.get('/', async (request, reply) => {
-    const list = await db.query.tournaments.findMany({
-      where: eq(tournaments.status, 'open'),
-      orderBy: [desc(tournaments.dateTime)],
-      limit: 50,
-    })
-    return list
+app.get('/', async (request, reply) => {
+  const list = await db.query.tournaments.findMany({
+    where: eq(tournaments.status, 'open'),
+    orderBy: [desc(tournaments.dateTime)],
+    limit: 50,
   })
+
+  const withCounts = await Promise.all(list.map(async (t) => {
+    const parts = await db.query.participations.findMany({
+      where: eq(participations.tournamentId, t.id)
+    })
+    return { ...t, participantsCount: parts.length }
+  }))
+
+  return withCounts
+})
 
   // GET /tournaments/:id — один турнир + участники
   app.get('/:id', async (request, reply) => {

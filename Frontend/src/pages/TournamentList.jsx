@@ -70,6 +70,9 @@ const handleJoin = async () => {
         <span>{date}</span>
         <span>{t.price > 0 ? `${t.price} ₽` : 'Бесплатно'}</span>
       </div>
+<div className ="card-players">
+  👥 {t.participantsCount} / {t.maxPlayers} игроков
+</div>
       <button className="btn-join" onClick={handleJoin} disabled={joined}>
         {joined ? '✓ Записан' : 'Записаться'}
       </button>
