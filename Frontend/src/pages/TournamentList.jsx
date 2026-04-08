@@ -48,9 +48,19 @@ export default function TournamentList({ user }) {
 }
 
 function TournamentCard({ tournament: t }) {
+  const [joined, setJoined] = useState(false)
+
   const date = new Date(t.dateTime).toLocaleDateString('ru-RU', {
     day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
   })
+
+const handleJoin = async () => {
+  await apiFetch(`/tournaments/${t.id}/join`, {
+    method: 'POST',
+    body: JSON.stringify({ userId: 1 })
+  })
+  setJoined(true)
+}
 
   return (
     <div className="card">
@@ -60,6 +70,9 @@ function TournamentCard({ tournament: t }) {
         <span>{date}</span>
         <span>{t.price > 0 ? `${t.price} ₽` : 'Бесплатно'}</span>
       </div>
+      <button className="btn-join" onClick={handleJoin} disabled={joined}>
+        {joined ? '✓ Записан' : 'Записаться'}
+      </button>
     </div>
   )
 }

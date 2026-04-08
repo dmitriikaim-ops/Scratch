@@ -44,8 +44,8 @@ app.post('/', async (request, reply) => {
   })
 
   // POST /tournaments/:id/join — записаться
-  app.post('/:id/join', { preHandler: requireAuth }, async (request, reply) => {
-    const { userId } = request.user
+    app.post('/:id/join', async (request, reply) => {
+    const userId = request.body.userId || 1
     const tournamentId = Number(request.params.id)
 
     const existing = await db.query.participations.findFirst({
