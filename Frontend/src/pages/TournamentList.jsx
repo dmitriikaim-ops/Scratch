@@ -90,7 +90,11 @@ function CreateTournament({ onBack, onCreated }) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = async () => {
+ const handleSubmit = async () => {
+  if (!form.title || !form.venueName || !form.dateTime) {
+    alert('Заполни название, бар и дату!')
+    return
+  }
     await apiFetch('/tournaments', {
       method: 'POST',
       body: JSON.stringify({

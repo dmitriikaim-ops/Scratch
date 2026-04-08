@@ -40,6 +40,7 @@ app.get('/', async (request, reply) => {
   // POST /tournaments — создать турнир
 app.post('/', async (request, reply) => {
     const userId = request.body.organizerId
+    console.log('Создание турнира, body:', request.body)
     const { title, venueName, venueAddress, dateTime, price, maxPlayers, level, description } = request.body
 
     const [tournament] = await db.insert(tournaments).values({
