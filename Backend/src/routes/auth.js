@@ -12,8 +12,9 @@ export default async function authRoutes(app) {
     // Проверяем подпись от Telegram — защита от подделки
     const isValid = validateTelegramInitData(initData, process.env.BOT_TOKEN)
     if (!isValid) {
-      return reply.status(401).send({ error: 'Данные от Telegram невалидны' })
-    }
+  console.log('initData невалиден:', initData)
+  return reply.status(401).send({ error: 'Данные от Telegram невалидны' })
+}
 
     // Разбираем данные пользователя
     const params = new URLSearchParams(initData)

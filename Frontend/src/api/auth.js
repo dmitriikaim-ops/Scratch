@@ -5,7 +5,7 @@ export async function authWithTelegram() {
   const initData = tg?.initData || ''
   const res = await fetch(BASE_URL + '/auth/telegram', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' }, 'ngrok-skip-browser-warning': 'true'
     body: JSON.stringify({ initData })
   })
   return res.json()
@@ -17,7 +17,7 @@ export async function fetchMe() {
 
   const res = await fetch(BASE_URL + '/users/me', {
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true'
       'Authorization': `Bearer ${token}`
     }
   })
@@ -31,7 +31,7 @@ export async function apiFetch(path, options = {}) {
   return fetch(BASE_URL + path, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true'
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     }

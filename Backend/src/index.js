@@ -14,7 +14,12 @@ config()
 const app = Fastify({ logger: true })
 
 // Подключаем плагины
-await app.register(cors, { origin: '*' })         // разрешаем запросы с фронтенда
+await app.register(cors, {
+  origin: ['https://scratch-nn6a.vercel.app', 'http://localhost:5173'],
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+})         // разрешаем запросы с фронтенда
 await app.register(jwt, { secret: process.env.JWT_SECRET })
 
 // Регистрируем маршруты
