@@ -1,12 +1,7 @@
-// Profile.jsx — экран профиля с редактированием прямо на месте
-// Поля имя, о себе, возраст — нажал, редактируешь inline
-// Интересы — добавляешь через поле ввода
-// Instagram — опциональный блок
-
 import { useState } from 'react'
 import { apiFetch } from '../api/auth.js'
 
-export default function Profile({ user, onUserUpdate }) {
+export default function Profile({ user }) {
   const [profile, setProfile] = useState({
     firstName: user?.firstName  || '',
     bio:       user?.bio        || '',
@@ -64,6 +59,7 @@ export default function Profile({ user, onUserUpdate }) {
 
   return (
     <div className="page profile-page">
+
       <header className="profile-header">
         <h1 className="profile-header-title">Профиль</h1>
       </header>
@@ -90,12 +86,15 @@ export default function Profile({ user, onUserUpdate }) {
             />
           </div>
         ) : (
-          <div className="profile-name profile-editable" onClick={() => setEditing('firstName')} title="Нажми чтобы изменить">
+          <div className="profile-name profile-editable" onClick={() => setEditing('firstName')}>
             {profile.firstName || 'Игрок'} <span className="edit-hint">✏️</span>
           </div>
         )}
 
-        {user?.username && <div className="profile-username">@{user.username}</div>}
+        {user?.username && (
+          <div className="profile-username">@{user.username}</div>
+        )}
+
         <div className="profile-level-badge" style={{ color: level.color, borderColor: level.color }}>
           {level.label}
         </div>
@@ -184,13 +183,15 @@ export default function Profile({ user, onUserUpdate }) {
       <section className="profile-section">
         <div className="profile-section-title">Контакты</div>
         <div className="profile-contacts">
-            <div className="profile-contact-row">
-  <span className="profile-contact-icon">✈️</span>
-  <span className="profile-contact-label">Telegram</span>
-  <span className="profile-contact-value">
-    {user?.username ? `@${user.username}` : 'подключён'}
-  </span>
-</div>
+
+          <div className="profile-contact-row">
+            <span className="profile-contact-icon">✈️</span>
+            <span className="profile-contact-label">Telegram</span>
+            <span className="profile-contact-value">
+              {user?.username ? `@${user.username}` : 'подключён'}
+            </span>
+          </div>
+
           {showInstagram ? (
             <div className="profile-contact-row">
               <span className="profile-contact-icon">📸</span>
@@ -206,8 +207,12 @@ export default function Profile({ user, onUserUpdate }) {
                   onKeyDown={e => e.key === 'Enter' && save('instagram', profile.instagram)}
                 />
               ) : (
-                <span className="profile-contact-value profile-editable" onClick={() => setEditing('instagram')}>
-                  {profile.instagram ? `@${profile.instagram}` : 'не указан'} <span className="edit-hint">✏️</span>
+                <span
+                  className="profile-contact-value profile-editable"
+                  onClick={() => setEditing('instagram')}
+                >
+                  {profile.instagram ? `@${profile.instagram}` : 'не указан'}
+                  <span className="edit-hint"> ✏️</span>
                 </span>
               )}
             </div>
@@ -218,6 +223,7 @@ export default function Profile({ user, onUserUpdate }) {
               <span className="profile-contact-value" style={{ color: 'var(--accent)' }}>+</span>
             </button>
           )}
+
         </div>
       </section>
 

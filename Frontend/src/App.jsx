@@ -19,8 +19,9 @@ export default function App() {
 const result = await authWithTelegram()
 if (result.token) {
   localStorage.setItem('token', result.token)
+  setUser(result.user)
   const me = await fetchMe()
-  setUser(me || result.user)
+  if (me) setUser(me)
 } else {
   setUser(result.user || null)
 }
