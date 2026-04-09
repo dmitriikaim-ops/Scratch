@@ -225,3 +225,40 @@ body {
   color: var(--muted);
   letter-spacing: 0.5px;
 }
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: #1a1a1a;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0 20px;
+  z-index: 100;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px 20px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  transition: color 0.15s;
+}
+
+.nav-item.active { color: var(--accent); }
+.nav-item:hover { color: var(--text); }
+
+.nav-icon {
+  font-size: 20px;
+  line-height: 1;
+}
