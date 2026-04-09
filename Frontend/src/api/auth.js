@@ -5,7 +5,10 @@ export async function authWithTelegram() {
   const initData = tg?.initData || ''
   const res = await fetch(BASE_URL + '/auth/telegram', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' }, 'ngrok-skip-browser-warning': 'true'
+    headers: { 
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true'
+},
     body: JSON.stringify({ initData })
   })
   return res.json()
