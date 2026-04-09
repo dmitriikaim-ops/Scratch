@@ -110,19 +110,39 @@ function CreateTournament({ onBack, onCreated }) {
   return (
     <div className="page">
       <header className="header">
-        <button onClick={onBack}>← Назад</button>
+        <button className="btn-back" onClick={onBack}>← Назад</button>
         <h1>Новый турнир</h1>
       </header>
 
       <div className="form">
-        <input name="title" placeholder="Название турнира" value={form.title} onChange={handleChange} />
-        <input name="venueName" placeholder="Название бара" value={form.venueName} onChange={handleChange} />
-        <input name="venueAddress" placeholder="Адрес" value={form.venueAddress} onChange={handleChange} />
-        <input name="dateTime" type="datetime-local" value={form.dateTime} onChange={handleChange} />
-        <input name="price" placeholder="Взнос (₽)" value={form.price} onChange={handleChange} />
-        <input name="maxPlayers" placeholder="Макс. игроков" value={form.maxPlayers} onChange={handleChange} />
-        <button className="btn-submit" onClick={handleSubmit}>Создать турнир</button>
-      </div>
+  <div className="form-group">
+    <label className="form-label">Название турнира</label>
+    <input name="title" placeholder="Например: Открытый турнир на Рубинштейна" value={form.title} onChange={handleChange} />
+  </div>
+  <div className="form-group">
+    <label className="form-label">Название бара</label>
+    <input name="venueName" placeholder="Бар Стрелка" value={form.venueName} onChange={handleChange} />
+  </div>
+  <div className="form-group">
+    <label className="form-label">Адрес</label>
+    <input name="venueAddress" placeholder="ул. Рубинштейна 15" value={form.venueAddress} onChange={handleChange} />
+  </div>
+  <div className="form-group">
+    <label className="form-label">Дата и время</label>
+    <input name="dateTime" type="datetime-local" value={form.dateTime} onChange={handleChange} />
+  </div>
+  <div style={{display: 'flex', gap: '12px'}}>
+    <div className="form-group" style={{flex: 1}}>
+      <label className="form-label">Взнос (₽)</label>
+      <input name="price" placeholder="500" value={form.price} onChange={handleChange} />
+    </div>
+    <div className="form-group" style={{flex: 1}}>
+      <label className="form-label">Макс. игроков</label>
+      <input name="maxPlayers" placeholder="8" value={form.maxPlayers} onChange={handleChange} />
+    </div>
+  </div>
+  <button className="btn-submit" onClick={handleSubmit}>Создать турнир</button>
+</div>
     </div>
   )
 }
