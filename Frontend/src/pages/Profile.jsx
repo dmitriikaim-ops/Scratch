@@ -1,56 +1,106 @@
-// Profile.jsx — экран профиля пользователя
-// Показывает: аватар, имя, статистику, о себе, интересы, мои турниры, контакты
+// Profile.jsx — экран профиля с редактированием прямо на месте
+// Поля имя, о себе, возраст — нажал, редактируешь inline
+// Интересы — добавляешь через поле ввода
+// Instagram — опциональный блок
 
-export default function Profile({ user }) {
-  // Моковые данные — потом заменим реальными запросами к серверу
-  const mockTournaments = [
-    { id: 1, title: 'Открытый турнир на Рубинштейна', venueName: 'Бар Стрелка', dateTime: '2025-03-15T18:00:00' },
-    { id: 2, title: 'Весенний кубок', venueName: 'Billiard Club SPb', dateTime: '2025-04-02T19:00:00' },
-    { id: 3, title: 'Ночной турнир', venueName: 'Шар и кий', dateTime: '2025-04-20T21:00:00' },
-  ]
+import { useState } from 'react'
+import { apiFetch } from '../api/auth.js'
 
-  // Данные пользователя — берём из пропса, с запасными значениями
-  const name      = user?.firstName  || 'Игрок'
-  const username  = user?.username   ? `@${user.username}` : ''
-  const avatar    = user?.avatarUrl  || null
-  const rating    = user?.rating     ?? 1000
-  const games     = user?.gamesCount ?? 0
+export default function Profile({ user, onUserUpdate }) {
+  const [profile, setProfile] = useState({
+    firstName: user?.firstName  || '',
+    bio:       user?.bio        || '',
+    age:       user?.age        || '',
+    instagram: user?.instagram  || '',
+    interests: user?.interests  || ['Пул', 'Снукер', 'Карамболь'],
+  })
 
-  // Уровень игрока по рейтингу Elo
+  const [editing, setEditing] = useState(null)
+  const [showInstagram, setShowInstagram] = useState(false)
+  const [newInterest, setNewInterest] = useState('')
+  const [showInterestInput, setShowInterestInput] = useState(false)
+
+  const save = async (field, value) => {
+    const updated = { ...profile, [field]: value }
+    setProfile(updated)
+    setEditing(null)
+    try {
+      await apiFetch('/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          firstName: updated.firstName,
+          bio:       updated.bio,
+          age:       updated.age ? Number(updated.age) : null,
+          instagram: updated.instagram || null,
+        })
+      })
+    } catch (e) {
+      console.error('Ошибка сохранения', e)
+    }
+  }
+
+  const addInterest = () => {
+    const tag = newInterest.trim()
+    if (!tag || profile.interests.includes(tag)) return
+    setProfile({ ...profile, interests: [...profile.interests, tag] })
+    setNewInterest('')
+    setShowInterestInput(false)
+  }
+
+  const removeInterest = (tag) => {
+    setProfile({ ...profile, interests: profile.interests.filter(t => t !== tag) })
+  }
+
+  const rating = user?.rating     ?? 1000
+  const games  = user?.gamesCount ?? 0
+
   const getLevel = (r) => {
-    if (r >= 1400) return { label: 'Про',       color: '#FFD700' }
-    if (r >= 1200) return { label: 'Опытный',   color: '#1DB954' }
-    if (r >= 1000) return { label: 'Любитель',  color: '#4A9EFF' }
-    return              { label: 'Новичок',    color: '#888'    }
+    if (r >= 1400) return { label: 'Про',      color: '#FFD700' }
+    if (r >= 1200) return { label: 'Опытный',  color: '#1DB954' }
+    if (r >= 1000) return { label: 'Любитель', color: '#4A9EFF' }
+    return              { label: 'Новичок',   color: '#888'    }
   }
   const level = getLevel(rating)
 
   return (
     <div className="page profile-page">
-
-      {/* ── Шапка ── */}
       <header className="profile-header">
         <h1 className="profile-header-title">Профиль</h1>
       </header>
 
-      {/* ── Аватар + имя ── */}
       <div className="profile-hero">
         <div className="profile-avatar-wrap">
-          {avatar
-            ? <img src={avatar} alt={name} className="profile-avatar" />
+          {user?.avatarUrl
+            ? <img src={user.avatarUrl} alt={profile.firstName} className="profile-avatar" />
             : <div className="profile-avatar profile-avatar-placeholder">
-                {name.charAt(0).toUpperCase()}
+                {(profile.firstName || 'И').charAt(0).toUpperCase()}
               </div>
           }
         </div>
-        <div className="profile-name">{name}</div>
-        {username && <div className="profile-username">{username}</div>}
+
+        {editing === 'firstName' ? (
+          <div className="profile-inline-edit">
+            <input
+              className="profile-edit-input"
+              value={profile.firstName}
+              autoFocus
+              onChange={e => setProfile({ ...profile, firstName: e.target.value })}
+              onBlur={() => save('firstName', profile.firstName)}
+              onKeyDown={e => e.key === 'Enter' && save('firstName', profile.firstName)}
+            />
+          </div>
+        ) : (
+          <div className="profile-name profile-editable" onClick={() => setEditing('firstName')} title="Нажми чтобы изменить">
+            {profile.firstName || 'Игрок'} <span className="edit-hint">✏️</span>
+          </div>
+        )}
+
+        {user?.username && <div className="profile-username">@{user.username}</div>}
         <div className="profile-level-badge" style={{ color: level.color, borderColor: level.color }}>
           {level.label}
         </div>
       </div>
 
-      {/* ── Статистика: рейтинг + игры ── */}
       <div className="profile-stats">
         <div className="profile-stat">
           <span className="profile-stat-value">{rating}</span>
@@ -61,87 +111,113 @@ export default function Profile({ user }) {
           <span className="profile-stat-value">{games}</span>
           <span className="profile-stat-label">Игр сыграно</span>
         </div>
+        <div className="profile-stat-divider" />
+        <div className="profile-stat">
+          {editing === 'age' ? (
+            <input
+              className="profile-edit-input profile-edit-input--center"
+              value={profile.age}
+              autoFocus
+              type="number"
+              onChange={e => setProfile({ ...profile, age: e.target.value })}
+              onBlur={() => save('age', profile.age)}
+              onKeyDown={e => e.key === 'Enter' && save('age', profile.age)}
+            />
+          ) : (
+            <span className="profile-stat-value profile-editable" onClick={() => setEditing('age')}>
+              {profile.age || '—'} <span className="edit-hint">✏️</span>
+            </span>
+          )}
+          <span className="profile-stat-label">Возраст</span>
+        </div>
       </div>
 
-      {/* ── О себе ── */}
       <section className="profile-section">
         <div className="profile-section-title">О себе</div>
-        <div className="profile-bio">
-          {user?.bio || 'Пока ничего не написано. Расскажи о себе!'}
-        </div>
+        {editing === 'bio' ? (
+          <textarea
+            className="profile-edit-textarea"
+            value={profile.bio}
+            autoFocus
+            rows={3}
+            onChange={e => setProfile({ ...profile, bio: e.target.value })}
+            onBlur={() => save('bio', profile.bio)}
+            placeholder="Расскажи о себе..."
+          />
+        ) : (
+          <div className="profile-bio profile-editable" onClick={() => setEditing('bio')}>
+            {profile.bio || 'Пока ничего не написано. Нажми чтобы добавить!'}
+            <span className="edit-hint"> ✏️</span>
+          </div>
+        )}
       </section>
 
-      {/* ── Интересы ── */}
       <section className="profile-section">
         <div className="profile-section-title">Интересы</div>
         <div className="profile-tags">
-          {(user?.interests || ['Пул', 'Снукер', 'Карамболь']).map((tag, i) => (
-            <span key={i} className="profile-tag">{tag}</span>
+          {profile.interests.map((tag, i) => (
+            <span key={i} className="profile-tag">
+              {tag}
+              <button className="profile-tag-remove" onClick={() => removeInterest(tag)}>×</button>
+            </span>
           ))}
+          {showInterestInput ? (
+            <div className="profile-tag-add-wrap">
+              <input
+                className="profile-tag-input"
+                value={newInterest}
+                autoFocus
+                placeholder="Напиши тег..."
+                onChange={e => setNewInterest(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addInterest()}
+                onBlur={() => { addInterest(); setShowInterestInput(false) }}
+              />
+            </div>
+          ) : (
+            <button className="profile-tag profile-tag-add" onClick={() => setShowInterestInput(true)}>
+              + Добавить
+            </button>
+          )}
         </div>
       </section>
 
-      {/* ── Мои турниры ── */}
-      <section className="profile-section">
-        <div className="profile-section-title">Мои турниры</div>
-        <div className="profile-tournaments">
-          {mockTournaments.length === 0
-            ? <div className="profile-empty">Ты ещё не участвовал в турнирах</div>
-            : mockTournaments.map(t => {
-                const date = new Date(t.dateTime).toLocaleDateString('ru-RU', {
-                  day: 'numeric', month: 'long'
-                })
-                return (
-                  <div key={t.id} className="profile-tournament-row">
-                    <div className="profile-tournament-info">
-                      <span className="profile-tournament-name">{t.title}</span>
-                      <span className="profile-tournament-meta">{t.venueName} · {date}</span>
-                    </div>
-                    <span className="profile-tournament-arrow">›</span>
-                  </div>
-                )
-              })
-          }
-        </div>
-      </section>
-
-      {/* ── Контакты ── */}
       <section className="profile-section">
         <div className="profile-section-title">Контакты</div>
         <div className="profile-contacts">
-          {username && (
-            <a
-              href={`https://t.me/${user.username}`}
-              className="profile-contact-row"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span className="profile-contact-icon">✈️</span>
-              <span className="profile-contact-label">Telegram</span>
-              <span className="profile-contact-value">{username}</span>
-            </a>
+            <div className="profile-contact-row">
+  <span className="profile-contact-icon">✈️</span>
+  <span className="profile-contact-label">Telegram</span>
+  <span className="profile-contact-value">
+    {user?.username ? `@${user.username}` : 'подключён'}
+  </span>
+</div>
+          {showInstagram ? (
+            <div className="profile-contact-row">
+              <span className="profile-contact-icon">📸</span>
+              <span className="profile-contact-label">Instagram</span>
+              {editing === 'instagram' ? (
+                <input
+                  className="profile-edit-input profile-edit-input--inline"
+                  value={profile.instagram}
+                  autoFocus
+                  placeholder="username"
+                  onChange={e => setProfile({ ...profile, instagram: e.target.value })}
+                  onBlur={() => save('instagram', profile.instagram)}
+                  onKeyDown={e => e.key === 'Enter' && save('instagram', profile.instagram)}
+                />
+              ) : (
+                <span className="profile-contact-value profile-editable" onClick={() => setEditing('instagram')}>
+                  {profile.instagram ? `@${profile.instagram}` : 'не указан'} <span className="edit-hint">✏️</span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <button className="profile-contact-row profile-contact-add" onClick={() => setShowInstagram(true)}>
+              <span className="profile-contact-icon">📸</span>
+              <span className="profile-contact-label">Добавить Instagram</span>
+              <span className="profile-contact-value" style={{ color: 'var(--accent)' }}>+</span>
+            </button>
           )}
-          {user?.instagram
-            ? (
-              <a
-                href={`https://instagram.com/${user.instagram}`}
-                className="profile-contact-row"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className="profile-contact-icon">📸</span>
-                <span className="profile-contact-label">Instagram</span>
-                <span className="profile-contact-value">@{user.instagram}</span>
-              </a>
-            )
-            : (
-              <div className="profile-contact-row profile-contact-empty">
-                <span className="profile-contact-icon">📸</span>
-                <span className="profile-contact-label">Instagram</span>
-                <span className="profile-contact-value muted">не указан</span>
-              </div>
-            )
-          }
         </div>
       </section>
 

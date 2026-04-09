@@ -9,6 +9,9 @@ export const users = pgTable('users', {
   avatarUrl:   text('avatar_url'),
   rating:      integer('rating').default(1000),      // Начальный Elo
   gamesCount:  integer('games_count').default(0),
+  bio:         text('bio'),
+  age:         integer('age'),
+  instagram:   text('instagram'),
   createdAt:   timestamp('created_at').defaultNow(),
 })
 

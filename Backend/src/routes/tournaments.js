@@ -68,4 +68,18 @@ app.post('/', async (request, reply) => {
 
     return reply.status(201).send(participation)
   })
+
+// PATCH /tournaments/participations/:id/cancel — отменить запись
+app.patch('/participations/:id/cancel', { preHandler: requireAuth }, async (request, reply) => {
+  const participationId = Number(request.params.id)
+
+  const [updated] = await db
+    .update(participations)
+    .set({ status: 'cancelled' })
+    .where(eq(participations.id, participationId))
+    .returning()
+
+  if (!updated) return reply.status(404).send({ error: 'Запись не найдена' })
+  return updated
+})
 }

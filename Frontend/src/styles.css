@@ -528,3 +528,169 @@ body {
 .profile-contact-empty .profile-contact-value {
   color: var(--muted);
 }
+
+/* ═══════════════════════════════
+   МОИ ЗАПИСИ
+   ═══════════════════════════════ */
+
+.booking-card {
+  position: relative;
+}
+
+.booking-cancelled {
+  opacity: 0.5;
+}
+
+.booking-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.status-active {
+  color: var(--accent);
+  background: rgba(29, 185, 84, 0.1);
+  border: 1px solid rgba(29, 185, 84, 0.3);
+}
+
+.status-cancelled {
+  color: var(--muted);
+  background: rgba(255,255,255, 0.05);
+  border: 1px solid var(--border);
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid #444;
+  color: var(--muted);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+
+.btn-cancel:hover {
+  border-color: #e05;
+  color: #e05;
+}
+
+/* ═══════════════════════════════
+   РЕДАКТИРОВАНИЕ ПРОФИЛЯ
+   ═══════════════════════════════ */
+
+/* Подсказка что поле кликабельно */
+.profile-editable {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.profile-editable:hover { opacity: 0.75; }
+
+.edit-hint {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+/* Инлайн-инпут для имени и возраста */
+.profile-inline-edit {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.profile-edit-input {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  outline: none;
+  text-align: center;
+  width: 200px;
+}
+
+.profile-edit-input--center {
+  width: 80px;
+  font-size: 22px;
+}
+
+.profile-edit-input--inline {
+  width: 140px;
+  font-size: 13px;
+  font-weight: 400;
+  text-align: right;
+  padding: 4px 8px;
+}
+
+/* Textarea для "О себе" */
+.profile-edit-textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 14px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+}
+
+/* Кнопка удаления тега */
+.profile-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-tag-remove {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 0 0 2px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.profile-tag-remove:hover { opacity: 1; }
+
+/* Кнопка + Добавить тег */
+.profile-tag-add {
+  cursor: pointer;
+  border-style: dashed;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.profile-tag-add:hover { opacity: 1; }
+
+/* Инпут нового тега */
+.profile-tag-add-wrap {
+  display: inline-flex;
+}
+
+.profile-tag-input {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 4px 12px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  width: 130px;
+}
+
+/* Кнопка добавить Instagram */
+.profile-contact-add {
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}

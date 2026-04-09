@@ -3,9 +3,10 @@
 // useState('tournaments') — стартовый экран
 
 import { useState, useEffect } from 'react'
-import { authWithTelegram } from './api/auth.js'
+import { authWithTelegram, fetchMe } from './api/auth.js'
 import TournamentList from './pages/TournamentList.jsx'
 import Profile from './pages/Profile.jsx'
+import Bookings from './pages/Bookings.jsx'
 
 export default function App() {
   const [user, setUser]       = useState(null)
@@ -15,9 +16,14 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        const result = await authWithTelegram()
-        setUser(result.user)
-        localStorage.setItem('token', result.token)
+const result = await authWithTelegram()
+if (result.token) {
+  localStorage.setItem('token', result.token)
+  const me = await fetchMe()
+  setUser(me || result.user)
+} else {
+  setUser(result.user || null)
+}
       } catch (e) {
         console.error('Ошибка авторизации', e)
       } finally {
@@ -36,12 +42,7 @@ export default function App() {
 
       {/* ── Контент: меняется в зависимости от tab ── */}
       {tab === 'tournaments' && <TournamentList user={user} />}
-      {tab === 'bookings'    && (
-        <div className="page">
-          <header className="header"><h1>МОИ ЗАПИСИ</h1></header>
-          <div className="empty">Скоро здесь появятся твои записи</div>
-        </div>
-      )}
+      {tab === 'bookings' && <Bookings user={user} />}
       {tab === 'profile' && <Profile user={user} />}
 
       {/* ── Нижняя навигация (теперь живёт здесь, а не в TournamentList) ── */}

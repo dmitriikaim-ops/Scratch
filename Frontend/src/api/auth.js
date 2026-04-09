@@ -11,6 +11,21 @@ export async function authWithTelegram() {
   return res.json()
 }
 
+export async function fetchMe() {
+  const token = localStorage.getItem('token')
+  if (!token) return null
+
+  const res = await fetch(BASE_URL + '/users/me', {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  })
+
+  if (!res.ok) return null
+  return res.json()
+}
+
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('token')
   return fetch(BASE_URL + path, {
