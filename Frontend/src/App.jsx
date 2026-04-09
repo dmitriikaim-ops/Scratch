@@ -1,13 +1,18 @@
+// App.jsx — корневой компонент
+// Теперь он управляет навигацией: какой экран сейчас активен
+// useState('tournaments') — стартовый экран
+
 import { useState, useEffect } from 'react'
 import { authWithTelegram } from './api/auth.js'
 import TournamentList from './pages/TournamentList.jsx'
+import Profile from './pages/Profile.jsx'
 
 export default function App() {
-  const [user, setUser] = useState(null)
+  const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
+  const [tab, setTab]         = useState('tournaments') // 'tournaments' | 'bookings' | 'profile'
 
   useEffect(() => {
-    // При запуске сразу авторизуемся через Telegram
     const init = async () => {
       try {
         const result = await authWithTelegram()
@@ -24,5 +29,48 @@ export default function App() {
 
   if (loading) return <div className="loading">Загрузка...</div>
 
-  return <TournamentList user={user} />
+  return (
+    // Оборачиваем всё в один контейнер
+    // tab — это «активная вкладка», она решает что показывать на экране
+    <div>
+
+      {/* ── Контент: меняется в зависимости от tab ── */}
+      {tab === 'tournaments' && <TournamentList user={user} />}
+      {tab === 'bookings'    && (
+        <div className="page">
+          <header className="header"><h1>МОИ ЗАПИСИ</h1></header>
+          <div className="empty">Скоро здесь появятся твои записи</div>
+        </div>
+      )}
+      {tab === 'profile' && <Profile user={user} />}
+
+      {/* ── Нижняя навигация (теперь живёт здесь, а не в TournamentList) ── */}
+      {/* Важно: мы убрали навигацию из TournamentList.jsx и перенесли сюда */}
+      {/* Так она всегда видна на любом экране */}
+      <nav className="bottom-nav">
+        <button
+          className={`nav-item ${tab === 'tournaments' ? 'active' : ''}`}
+          onClick={() => setTab('tournaments')}
+        >
+          <span className="nav-icon">🎱</span>
+          <span>Турниры</span>
+        </button>
+        <button
+          className={`nav-item ${tab === 'bookings' ? 'active' : ''}`}
+          onClick={() => setTab('bookings')}
+        >
+          <span className="nav-icon">📋</span>
+          <span>Мои записи</span>
+        </button>
+        <button
+          className={`nav-item ${tab === 'profile' ? 'active' : ''}`}
+          onClick={() => setTab('profile')}
+        >
+          <span className="nav-icon">👤</span>
+          <span>Профиль</span>
+        </button>
+      </nav>
+
+    </div>
+  )
 }

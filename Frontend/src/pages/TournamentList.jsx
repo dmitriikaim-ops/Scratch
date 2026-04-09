@@ -15,20 +15,6 @@ export default function TournamentList({ user }) {
 
   return (
     <div className="page">
-    <nav className="bottom-nav">
-      <button className="nav-item active">
-        <span className="nav-icon">🎱</span>
-        <span>Турниры</span>
-      </button>
-      <button className="nav-item">
-        <span className="nav-icon">📋</span>
-        <span>Мои записи</span>
-      </button>
-      <button className="nav-item">
-        <span className="nav-icon">👤</span>
-        <span>Профиль</span>
-      </button>
-    </nav>
     {screen === 'create' && (
         <CreateTournament
           onBack={() => setScreen('list')}
