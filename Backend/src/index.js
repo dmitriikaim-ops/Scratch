@@ -15,7 +15,7 @@ const app = Fastify({ logger: true })
 
 // Подключаем плагины
 await app.register(cors, {
-  origin: ['https://scratch-nn6a.vercel.app', 'http://localhost:5173'],
+  origin: ['https://scratch-eight-theta.vercel.app', 'https://scratch-nn6a.vercel.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   credentials: true
