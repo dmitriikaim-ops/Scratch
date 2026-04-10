@@ -8,6 +8,9 @@ export default async function authRoutes(app) {
   // POST /auth/telegram
   app.post('/telegram', async (request, reply) => {
     const { initData } = request.body
+console.log('=== AUTH REQUEST ===')
+console.log('initData:', initData)
+console.log('initData length:', initData?.length)
 
     // Проверяем подпись от Telegram — защита от подделки
     const isValid = validateTelegramInitData(initData, process.env.BOT_TOKEN)
