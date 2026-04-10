@@ -21,8 +21,12 @@ console.log('Результат авторизации:', result)
 if (result.token) {
   localStorage.setItem('token', result.token)
   setUser(result.user)
+ try {
   const me = await fetchMe()
   if (me) setUser(me)
+} catch(e) {
+  console.log('fetchMe упал:', e)
+}
 } else {
   setUser(result.user || null)
 }
