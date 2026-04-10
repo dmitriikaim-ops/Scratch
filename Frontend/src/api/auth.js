@@ -2,7 +2,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export async function authWithTelegram() {
   const tg = window.Telegram?.WebApp
-  const initData = tg?.initData || ''
+tg?.ready()
+const initData = tg?.initData || ''
   const res = await fetch(BASE_URL + '/auth/telegram', {
     method: 'POST',
     headers: {
