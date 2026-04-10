@@ -17,7 +17,7 @@ const app = Fastify({ logger: true })
 await app.register(cors, {
   origin: ['https://scratch-nn6a.vercel.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   credentials: true
 })         // разрешаем запросы с фронтенда
 await app.register(jwt, { secret: process.env.JWT_SECRET })

@@ -17,6 +17,7 @@ export default function App() {
     const init = async () => {
       try {
 const result = await authWithTelegram()
+console.log('Результат авторизации:', result)
 if (result.token) {
   localStorage.setItem('token', result.token)
   setUser(result.user)

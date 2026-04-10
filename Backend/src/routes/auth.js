@@ -11,9 +11,15 @@ export default async function authRoutes(app) {
 
     // Проверяем подпись от Telegram — защита от подделки
     const isValid = validateTelegramInitData(initData, process.env.BOT_TOKEN)
-    if (!isValid) {
-  console.log('initData невалиден:', initData)
+if (!isValid && initData !== '') {
   return reply.status(401).send({ error: 'Данные от Telegram невалидны' })
+}
+
+// Если initData пустой (открыто в браузере) — создаём тестового пользователя
+if (!initData) {
+  const token = app.jwt.sign({ userId: 1, telegramId: 'test' })
+  const testUser = await db.query.users.findFirst()
+  return { token, user: testUser || { id: 1, firstName: 'Тест', rating: 1000, gamesCount: 0 } }
 }
 
     // Разбираем данные пользователя
