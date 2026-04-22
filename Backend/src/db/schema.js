@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, serial, text, integer, timestamp, boolean, relations } from 'drizzle-orm/pg-core'
 
 // Таблица пользователей
 export const users = pgTable('users', {
@@ -51,3 +51,16 @@ export const matches = pgTable('matches', {
   confirmedByBoth: boolean('confirmed_by_both').default(false),
   playedAt:        timestamp('played_at'),
 })
+
+// Связи между таблицами (нужны для with: { user: true } в запросах)
+
+export const participationsRelations = relations(participations, ({ one }) => ({
+  user: one(users, {
+    fields: [participations.userId],
+    references: [users.id],
+  }),
+  tournament: one(tournaments, {
+    fields: [participations.tournamentId],
+    references: [tournaments.id],
+  }),
+}))

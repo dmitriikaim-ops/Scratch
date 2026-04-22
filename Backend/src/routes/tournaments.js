@@ -23,19 +23,38 @@ app.get('/', async (request, reply) => {
   return withCounts
 })
 
-  // GET /tournaments/:id — один турнир + участники
-  app.get('/:id', async (request, reply) => {
-    const tournament = await db.query.tournaments.findFirst({
-      where: eq(tournaments.id, Number(request.params.id)),
-    })
-    if (!tournament) return reply.status(404).send({ error: 'Турнир не найден' })
-
-    const parts = await db.query.participations.findMany({
-      where: eq(participations.tournamentId, tournament.id),
-    })
-
-    return { ...tournament, participantsCount: parts.length, participants: parts }
+  // GET /tournaments/:id — один турнир + участники с профилями
+app.get('/:id', async (request, reply) => {
+  const tournament = await db.query.tournaments.findFirst({
+    where: eq(tournaments.id, Number(request.params.id)),
   })
+  if (!tournament) return reply.status(404).send({ error: 'Турнир не найден' })
+
+  // Достаём участников вместе с данными из таблицы users
+  const parts = await db.query.participations.findMany({
+    where: eq(participations.tournamentId, tournament.id),
+    with: { user: true }  // JOIN с таблицей users
+  })
+
+  // Формируем список участников с нужными полями
+  const participants = parts.map(p => ({
+    participationId: p.id,
+    status:    p.status,
+    userId:    p.user.id,
+    firstName: p.user.firstName,
+    username:  p.user.username,
+    avatarUrl: p.user.avatarUrl,
+    bio:       p.user.bio,
+    interests: p.user.interests,
+    instagram: p.user.instagram,
+  }))
+
+  return {
+    ...tournament,
+    participantsCount: participants.length,
+    participants
+  }
+})
 
   // POST /tournaments — создать турнир
 app.post('/', async (request, reply) => {
