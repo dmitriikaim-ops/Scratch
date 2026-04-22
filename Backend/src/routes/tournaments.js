@@ -1,5 +1,5 @@
 import { db } from '../db/client.js'
-import { tournaments, participations } from '../db/schema.js'
+import { tournaments, participations, users } from '../db/schema.js'
 import { eq, desc } from 'drizzle-orm'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -85,34 +85,33 @@ app.post('/:id/join', async (request, reply) => {
     tournamentId, userId
   }).returning()
 
-  // ── Уведомление организатору ──────────────────────────────
-  // Делаем это после записи — асинхронно, не блокируя ответ
+  // ── Уведомления — делаем после записи, не блокируем ответ ──
   try {
-    // Достаём турнир чтобы узнать кто организатор
+
     const tournament = await db.query.tournaments.findFirst({
       where: eq(tournaments.id, tournamentId)
     })
 
     if (tournament) {
-      // Достаём данные организатора — нам нужен его telegramId
-      const { users } = await import('../db/schema.js')
       const organizer = await db.query.users.findFirst({
         where: eq(users.id, tournament.organizerId)
       })
-
-      // Достаём данные того кто записался — чтобы написать имя в уведомлении
       const newParticipant = await db.query.users.findFirst({
         where: eq(users.id, userId)
       })
 
+      const count = await db.query.participations.findMany({
+        where: eq(participations.tournamentId, tournamentId)
+      })
+
+      const date = new Date(tournament.dateTime).toLocaleString('ru-RU', {
+        day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+      })
+
+      // ── 1. Уведомление ОРГАНИЗАТОРУ (уже было) ──
       if (organizer?.telegramId && organizer.id !== userId) {
-        // organizer.id !== userId — не уведомляем если организатор записался сам на себя
         const name = newParticipant?.firstName || newParticipant?.username || 'Кто-то'
         const username = newParticipant?.username ? ` (@${newParticipant.username})` : ''
-        const count = await db.query.participations.findMany({
-          where: eq(participations.tournamentId, tournamentId)
-        })
-
         await sendTelegramNotification(
           organizer.telegramId,
           `🎱 <b>${name}${username}</b> записался на твой турнир!\n\n` +
@@ -121,19 +120,31 @@ app.post('/:id/join', async (request, reply) => {
           `👥 Участников: ${count.length} / ${tournament.maxPlayers}`
         )
       }
+
+      // ── 2. Уведомление УЧАСТНИКУ (новое) ──
+      if (newParticipant?.telegramId) {
+        await sendTelegramNotification(
+          newParticipant.telegramId,
+          `✅ Ты записан на турнир!\n\n` +
+          `<b>${tournament.title}</b>\n` +
+          `📍 ${tournament.venueName}\n` +
+          `🗓 ${date}\n` +
+          `💰 ${tournament.price > 0 ? tournament.price + ' ₽' : 'Бесплатно'}\n\n` +
+          `Удачи за столом! 🎱`
+        )
+      }
     }
   } catch (e) {
     console.error('Ошибка при отправке уведомления:', e)
   }
-  // ─────────────────────────────────────────────────────────
 
   return reply.status(201).send(participation)
 })
 
-// PATCH /tournaments/participations/:id/cancel — отменить запись
 app.patch('/participations/:id/cancel', { preHandler: requireAuth }, async (request, reply) => {
   const participationId = Number(request.params.id)
 
+  // Шаг 1: обновляем статус в БД
   const [updated] = await db
     .update(participations)
     .set({ status: 'cancelled' })
@@ -141,6 +152,63 @@ app.patch('/participations/:id/cancel', { preHandler: requireAuth }, async (requ
     .returning()
 
   if (!updated) return reply.status(404).send({ error: 'Запись не найдена' })
+
+  // Шаг 2: отправляем уведомления — асинхронно, не блокируем ответ
+  try {
+
+    // Достаём турнир чтобы узнать организатора и детали
+    const tournament = await db.query.tournaments.findFirst({
+      where: eq(tournaments.id, updated.tournamentId)
+    })
+
+    if (tournament) {
+      const organizer = await db.query.users.findFirst({
+        where: eq(users.id, tournament.organizerId)
+      })
+      const participant = await db.query.users.findFirst({
+        where: eq(users.id, updated.userId)
+      })
+
+      // Считаем сколько активных участников осталось
+      const remaining = await db.query.participations.findMany({
+        where: (p, { and }) => and(
+          eq(p.tournamentId, updated.tournamentId),
+          eq(p.status, 'registered')
+        )
+      })
+
+      // Уведомление организатору
+      if (organizer?.telegramId && organizer.id !== updated.userId) {
+        const name = participant?.firstName || participant?.username || 'Кто-то'
+        const username = participant?.username ? ` (@${participant.username})` : ''
+        await sendTelegramNotification(
+          organizer.telegramId,
+          `❌ <b>${name}${username}</b> отменил запись на турнир\n\n` +
+          `<b>${tournament.title}</b>\n` +
+          `📍 ${tournament.venueName}\n` +
+          `👥 Осталось участников: ${remaining.length} / ${tournament.maxPlayers}`
+        )
+      }
+
+      // Уведомление участнику
+      if (participant?.telegramId) {
+        const date = new Date(tournament.dateTime).toLocaleString('ru-RU', {
+          day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+        })
+        await sendTelegramNotification(
+          participant.telegramId,
+          `🚫 Запись отменена\n\n` +
+          `<b>${tournament.title}</b>\n` +
+          `📍 ${tournament.venueName}\n` +
+          `🗓 ${date}\n\n` +
+          `Если передумаешь — записывайся снова! 🎱`
+        )
+      }
+    }
+  } catch (e) {
+    console.error('Ошибка при отправке уведомления об отмене:', e)
+  }
+
   return updated
 })
 }
