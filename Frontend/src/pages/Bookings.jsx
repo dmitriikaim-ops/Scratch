@@ -5,10 +5,9 @@ import { useState, useEffect } from 'react'
 import { apiFetch } from '../api/auth.js'
 
 export default function Bookings({ user }) {
-  const [items, setItems]           = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [cancelling, setCancelling] = useState(null) // id записи которую отменяем
-
+  const [items, setItems]     = useState([])
+  const [loading, setLoading] = useState(true)
+  const [cancelling, setCancelling] = useState(null)
   // Загружаем записи при открытии экрана
   useEffect(() => {
     loadBookings()
@@ -28,19 +27,21 @@ export default function Bookings({ user }) {
     }
   }
 
-  // Первый клик — показываем кнопки подтверждения
-  const handleCancel = (participationId) => {
-    setCancelling(participationId)
-  }
+// Добавь в состояние компонента Bookings:
+const [cancelling, setCancelling] = useState(null) // id записи которую отменяем
 
-  // Второй клик (подтверждение) — отправляем запрос
-  const confirmCancel = async (participationId) => {
-    await apiFetch(`/tournaments/participations/${participationId}/cancel`, {
-      method: 'PATCH'
-    })
-    setCancelling(null)
-    loadBookings()
-  }
+const handleCancel = async (participationId) => {
+  setCancelling(participationId) // показываем кнопки подтверждения
+}
+
+const confirmCancel = async (participationId) => {
+  await apiFetch(`/tournaments/participations/${participationId}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify({})  // ← добавить эту строку
+  })
+  setCancelling(null)
+  loadBookings()
+}
 
   if (loading) return <div className="loading">Загрузка...</div>
 
@@ -61,10 +62,10 @@ export default function Bookings({ user }) {
             <BookingCard
               key={item.participationId}
               item={item}
-              cancelling={cancelling}
               onCancel={handleCancel}
-              onConfirmCancel={confirmCancel}
-              onCancelDismiss={() => setCancelling(null)}
+  cancelling={cancelling}          
+  onConfirmCancel={confirmCancel}  
+  onCancelDismiss={() => setCancelling(null)} 
             />
           ))}
         </div>
@@ -73,13 +74,12 @@ export default function Bookings({ user }) {
   )
 }
 
-function BookingCard({ item, cancelling, onCancel, onConfirmCancel, onCancelDismiss }) {
+function BookingCard({ item, onCancel, cancelling, onConfirmCancel, onCancelDismiss }) {
   const date = new Date(item.dateTime).toLocaleDateString('ru-RU', {
     day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
   })
 
   const isCancelled = item.status === 'cancelled'
-  const isConfirming = cancelling === item.participationId // эта карточка в режиме подтверждения
 
   return (
     <div className={`card booking-card ${isCancelled ? 'booking-cancelled' : ''}`}>
@@ -91,39 +91,13 @@ function BookingCard({ item, cancelling, onCancel, onConfirmCancel, onCancelDism
           {isCancelled ? '✕ Отменил' : '✓ Иду'}
         </span>
       </div>
-
       {!isCancelled && (
-        isConfirming ? (
-          // Режим подтверждения — вместо confirm() показываем кнопки прямо в карточке
-          <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 13, color: '#aaa', marginBottom: 8 }}>
-              Точно отменить запись?
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                className="btn-cancel"
-                style={{ flex: 1, background: '#c0392b' }}
-                onClick={() => onConfirmCancel(item.participationId)}
-              >
-                Да, отменить
-              </button>
-              <button
-                className="btn-cancel"
-                style={{ flex: 1, background: '#2a2a2a', color: '#888' }}
-                onClick={onCancelDismiss}
-              >
-                Нет
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            className="btn-cancel"
-            onClick={() => onCancel(item.participationId)}
-          >
-            Отменить запись
-          </button>
-        )
+        <button
+          className="btn-cancel"
+          onClick={() => onCancel(item.participationId)}
+        >
+          Отменить запись
+        </button>
       )}
     </div>
   )
