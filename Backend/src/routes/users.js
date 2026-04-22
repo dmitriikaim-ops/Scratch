@@ -10,7 +10,9 @@
 //   → вызывает нашу функцию → мы идём в БД → возвращаем JSON
 
 import { eq, desc } from 'drizzle-orm'
-import { users, tournaments, participations } from '../db/schema.js'
+import { tournaments, participations } from '../db/schema.js'
+import { db } from '../db/client.js'
+import { requireAuth } from '../middleware/auth.js'
 
 export default async function usersRoutes(fastify) {
 
@@ -19,11 +21,11 @@ export default async function usersRoutes(fastify) {
   // Отдаёт профиль ТЕКУЩЕГО пользователя (по JWT токену)
   //
   // Фронтенд в App.jsx вызывает fetchMe() — это запрос сюда.
-  // preHandler: [fastify.authenticate] — middleware, который проверяет
+  // preHandler: [requireAuth] — middleware, который проверяет
   // JWT токен из заголовка Authorization. Если токен невалидный — 401.
   // ──────────────────────────────────────────────────────────────
   fastify.get('/users/me', {
-    preHandler: [fastify.authenticate]
+    preHandler: [requireAuth]
   }, async (request, reply) => {
     // request.user.id — это ID пользователя из JWT токена.
     // Токен создаётся в auth.js при входе и хранится у фронтенда.
@@ -60,7 +62,7 @@ export default async function usersRoutes(fastify) {
   // то request.params.id будет строкой "42"
   // ──────────────────────────────────────────────────────────────
   fastify.get('/users/:id/tournaments', {
-    preHandler: [fastify.authenticate]
+    preHandler: [requireAuth]
   }, async (request, reply) => {
     const userId = Number(request.params.id)
     // Number() превращает строку "42" в число 42
@@ -110,7 +112,7 @@ export default async function usersRoutes(fastify) {
   // Используется когда пользователь редактирует bio, instagram, age.
   // ──────────────────────────────────────────────────────────────
   fastify.patch('/users/me', {
-    preHandler: [fastify.authenticate]
+    preHandler: [requireAuth]
   }, async (request, reply) => {
     const userId = request.user.id
 
@@ -150,5 +152,27 @@ export default async function usersRoutes(fastify) {
       return reply.status(500).send({ error: 'Ошибка сервера' })
     }
   })
+  // GET /users/me/participations — мои записи на турниры
+fastify.get('/me/participations', {
+  preHandler: [requireAuth]
+}, async (request, reply) => {
+  const userId = request.user.userId
 
+  const result = await db
+    .select({
+      participationId: participations.id,
+      status:          participations.status,
+      joinedAt:        participations.joinedAt,
+      title:           tournaments.title,
+      venueName:       tournaments.venueName,
+      dateTime:        tournaments.dateTime,
+      price:           tournaments.price,
+    })
+    .from(participations)
+    .innerJoin(tournaments, eq(participations.tournamentId, tournaments.id))
+    .where(eq(participations.userId, userId))
+    .orderBy(desc(participations.joinedAt))
+
+  return reply.send(result)
+})
 }
