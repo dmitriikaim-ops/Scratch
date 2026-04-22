@@ -1,218 +1,214 @@
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  frontend/src/pages/Profile.jsx                              ║
-// ╚══════════════════════════════════════════════════════════════╝
-//
-// Этот файл — экран "Профиль" в нижней навигации.
-// App.jsx передаёт сюда объект user через пропс: <Profile user={user} />
-// user содержит данные из таблицы users (см. schema.js)
-
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { apiFetch } from '../api/auth.js'
 
-// ─────────────────────────────────────────────
-// ГЛАВНЫЙ КОМПОНЕНТ: Profile
-// ─────────────────────────────────────────────
-// user — объект с данными текущего пользователя, пришедший из App.jsx
 export default function Profile({ user }) {
+  const [profile, setProfile] = useState({
+    firstName: user?.firstName  || '',
+    bio:       user?.bio        || '',
+    age:       user?.age        || '',
+    instagram: user?.instagram  || '',
+    interests: user?.interests  || ['Пул', 'Снукер', 'Карамболь'],
+  })
 
-  // useState — "ячейки памяти" компонента.
-  // Когда данные в них меняются — React автоматически перерисовывает экран.
-  const [tournaments, setTournaments]   = useState([])   // история турниров
-  const [loadingHistory, setLoadingHistory] = useState(true) // идёт ли загрузка истории
+  const [editing, setEditing] = useState(null)
+  const [showInstagram, setShowInstagram] = useState(false)
+  const [newInterest, setNewInterest] = useState('')
+  const [showInterestInput, setShowInterestInput] = useState(false)
 
-  // useEffect запускается ОДИН РАЗ после того как компонент появился на экране.
-  // Зависимость [user?.id] означает: "перезапусти если поменялся user.id"
-  useEffect(() => {
-    if (!user?.id) return // если user ещё не загрузился — ждём
-
-    // Запрашиваем историю турниров этого пользователя с бэкенда
-    // apiFetch — это обёртка над fetch() из api/auth.js, она добавляет JWT токен
-    apiFetch(`/users/${user.id}/tournaments`)
-      .then(r => r.json())
-      .then(data => {
-        // data — массив турниров. Если бэкенд вернул ошибку — ставим пустой массив
-        setTournaments(Array.isArray(data) ? data : [])
+  const save = async (field, value) => {
+    const updated = { ...profile, [field]: value }
+    setProfile(updated)
+    setEditing(null)
+    try {
+      await apiFetch('/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          firstName: updated.firstName,
+          bio:       updated.bio,
+          age:       updated.age ? Number(updated.age) : null,
+          instagram: updated.instagram || null,
+        })
       })
-      .catch(() => setTournaments([]))        // если запрос упал — не ломаем страницу
-      .finally(() => setLoadingHistory(false)) // в любом случае — загрузка окончена
-  }, [user?.id])
-
-  // Если user ещё не пришёл из App.jsx — показываем заглушку
-  if (!user) {
-    return (
-      <div className="page profile-page">
-        <div className="loading">Загрузка профиля...</div>
-      </div>
-    )
+    } catch (e) {
+      console.error('Ошибка сохранения', e)
+    }
   }
 
-  // Форматируем дату регистрации: "апрель 2025"
-  const memberSince = user.createdAt
-    ? new Date(user.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
-    : null
+  const addInterest = () => {
+    const tag = newInterest.trim()
+    if (!tag || profile.interests.includes(tag)) return
+    setProfile({ ...profile, interests: [...profile.interests, tag] })
+    setNewInterest('')
+    setShowInterestInput(false)
+  }
 
-  // ─── РЕНДЕР (то что видит пользователь) ───────────────────────
+  const removeInterest = (tag) => {
+    setProfile({ ...profile, interests: profile.interests.filter(t => t !== tag) })
+  }
+
+  const games = user?.gamesCount ?? 0
+
   return (
     <div className="page profile-page">
 
-      {/* ── Шапка ── */}
       <header className="profile-header">
-        <span className="profile-header-title">СКРЭТЧ</span>
+        <h1 className="profile-header-title">Профиль</h1>
       </header>
 
-      {/* ── Аватар + имя + уровень ── */}
       <div className="profile-hero">
         <div className="profile-avatar-wrap">
-          {/* Если у пользователя есть аватар из Telegram — показываем его.
-              Если нет — показываем заглушку с первой буквой имени.
-              Оператор ? называется "тернарный": если ДА ? то_это : иначе_то */}
-          {user.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt="Аватар"
-              className="profile-avatar"
-              // onError — если картинка не загрузилась, скрываем тег <img>
-              // и вместо него покажется заглушка ниже (но это сложнее,
-              // поэтому пока просто скрываем сломанный img)
-              onError={e => { e.target.style.display = 'none' }}
-            />
-          ) : (
-            <div className="profile-avatar-placeholder">
-              {/* Берём первую букву имени и делаем заглавной */}
-              {(user.firstName || user.username || '?')[0].toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        {/* Имя пользователя */}
-        <div className="profile-name">
-          {user.firstName || user.username || 'Игрок'}
-        </div>
-
-        {/* Username в Telegram (со значком @) */}
-        {user.username && (
-          <div className="profile-username">@{user.username}</div>
-        )}
-
-      </div>
-
-      {/* ── Статистика ── */}
-      <div className="profile-stats">
-        <div className="profile-stat">
-          <span className="profile-stat-value">{user.gamesCount ?? 0}</span>
-          <span className="profile-stat-label">Игр сыграно</span>
-        </div>
-
-        {/* Вертикальный разделитель между блоками статистики */}
-        <div className="profile-stat-divider" />
-
-        <div className="profile-stat">
-          {/* Количество турниров из истории */}
-          <span className="profile-stat-value">{tournaments.length}</span>
-          <span className="profile-stat-label">Турниров</span>
-        </div>
-      </div>
-
-      {/* ── О себе ── */}
-      {/* Показываем блок только если поле bio заполнено */}
-      {user.bio && (
-        <div className="profile-section">
-          <div className="profile-section-title">О себе</div>
-          <div className="profile-bio">{user.bio}</div>
-        </div>
-      )}
-
-      {/* ── Контакты ── */}
-      {/* Показываем блок только если есть хоть одно контактное поле */}
-      {(user.instagram || memberSince) && (
-        <div className="profile-section">
-          <div className="profile-section-title">Контакты</div>
-          <div className="profile-contacts">
-
-            {/* Instagram — кликабельная ссылка */}
-            {user.instagram && (
-              <a
-                href={`https://instagram.com/${user.instagram.replace('@', '')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="profile-contact-row"
-              >
-                <span className="profile-contact-icon">📸</span>
-                <span className="profile-contact-label">Instagram</span>
-                <span className="profile-contact-value">@{user.instagram.replace('@', '')}</span>
-              </a>
-            )}
-
-            {/* Дата регистрации — просто текст */}
-            {memberSince && (
-              <div className="profile-contact-row">
-                <span className="profile-contact-icon">📅</span>
-                <span className="profile-contact-label">В Скрэтче с</span>
-                <span className="profile-contact-value">{memberSince}</span>
+          {user?.avatarUrl
+            ? <img src={user.avatarUrl} alt={profile.firstName} className="profile-avatar" />
+            : <div className="profile-avatar profile-avatar-placeholder">
+                {(profile.firstName || 'И').charAt(0).toUpperCase()}
               </div>
-            )}
-          </div>
+          }
         </div>
-      )}
 
-      {/* ── История турниров ── */}
-      <div className="profile-section">
-        <div className="profile-section-title">История турниров</div>
-
-        {/* Пока данные грузятся — показываем текст-заглушку */}
-        {loadingHistory ? (
-          <div className="profile-empty">Загрузка...</div>
-        ) : tournaments.length === 0 ? (
-          // Турниров нет — мотивируем записаться
-          <div className="profile-empty">
-            Ты ещё не участвовал в турнирах.<br />Самое время начать! 🎱
+        {editing === 'firstName' ? (
+          <div className="profile-inline-edit">
+            <input
+              className="profile-edit-input"
+              value={profile.firstName}
+              autoFocus
+              onChange={e => setProfile({ ...profile, firstName: e.target.value })}
+              onBlur={() => save('firstName', profile.firstName)}
+              onKeyDown={e => e.key === 'Enter' && save('firstName', profile.firstName)}
+            />
           </div>
         ) : (
-          // Есть турниры — рендерим список
-          // .map() — проходит по каждому элементу массива и возвращает JSX
-          <div className="profile-tournaments">
-            {tournaments.map(t => (
-              <TournamentRow key={t.id} tournament={t} />
-            ))}
+          <div className="profile-name profile-editable" onClick={() => setEditing('firstName')}>
+            {profile.firstName || 'Игрок'} <span className="edit-hint">✏️</span>
           </div>
+        )}
+
+        {user?.username && (
+          <div className="profile-username">@{user.username}</div>
         )}
       </div>
 
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────
-// ВСПОМОГАТЕЛЬНЫЙ КОМПОНЕНТ: одна строка истории
-// ─────────────────────────────────────────────
-// Выделяем в отдельный компонент чтобы Profile не был перегружен.
-// Принцип: каждый компонент делает одну вещь и делает её хорошо.
-function TournamentRow({ tournament: t }) {
-  // Форматируем дату турнира
-  const date = new Date(t.dateTime).toLocaleDateString('ru-RU', {
-    day: 'numeric', month: 'long'
-  })
-
-  // Конфигурация статуса участия
-  // Вместо if/else используем объект — это чище и короче
-  const statusConfig = {
-    registered: { label: 'Записан',  color: '#1DB954' },
-    cancelled:  { label: 'Отменён', color: '#888'    },
-  }
-  const status = statusConfig[t.status] || statusConfig.registered
-
-  return (
-    <div className="profile-tournament-row">
-      <div className="profile-tournament-info">
-        <span className="profile-tournament-name">{t.title}</span>
-        <span className="profile-tournament-meta">
-          {t.venueName} · {date}
-        </span>
+      <div className="profile-stats">
+        <div className="profile-stat">
+          <span className="profile-stat-value">{games}</span>
+          <span className="profile-stat-label">Игр сыграно</span>
+        </div>
+        <div className="profile-stat-divider" />
+        <div className="profile-stat">
+          {editing === 'age' ? (
+            <input
+              className="profile-edit-input profile-edit-input--center"
+              value={profile.age}
+              autoFocus
+              type="number"
+              onChange={e => setProfile({ ...profile, age: e.target.value })}
+              onBlur={() => save('age', profile.age)}
+              onKeyDown={e => e.key === 'Enter' && save('age', profile.age)}
+            />
+          ) : (
+            <span className="profile-stat-value profile-editable" onClick={() => setEditing('age')}>
+              {profile.age || '—'} <span className="edit-hint">✏️</span>
+            </span>
+          )}
+          <span className="profile-stat-label">Возраст</span>
+        </div>
       </div>
-      {/* Статус записи с цветом */}
-      <span style={{ fontSize: 12, color: status.color, fontWeight: 600 }}>
-        {status.label}
-      </span>
+
+      <section className="profile-section">
+        <div className="profile-section-title">О себе</div>
+        {editing === 'bio' ? (
+          <textarea
+            className="profile-edit-textarea"
+            value={profile.bio}
+            autoFocus
+            rows={3}
+            onChange={e => setProfile({ ...profile, bio: e.target.value })}
+            onBlur={() => save('bio', profile.bio)}
+            placeholder="Расскажи о себе..."
+          />
+        ) : (
+          <div className="profile-bio profile-editable" onClick={() => setEditing('bio')}>
+            {profile.bio || 'Пока ничего не написано. Нажми чтобы добавить!'}
+            <span className="edit-hint"> ✏️</span>
+          </div>
+        )}
+      </section>
+
+      <section className="profile-section">
+        <div className="profile-section-title">Интересы</div>
+        <div className="profile-tags">
+          {profile.interests.map((tag, i) => (
+            <span key={i} className="profile-tag">
+              {tag}
+              <button className="profile-tag-remove" onClick={() => removeInterest(tag)}>×</button>
+            </span>
+          ))}
+          {showInterestInput ? (
+            <div className="profile-tag-add-wrap">
+              <input
+                className="profile-tag-input"
+                value={newInterest}
+                autoFocus
+                placeholder="Напиши тег..."
+                onChange={e => setNewInterest(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addInterest()}
+                onBlur={() => { addInterest(); setShowInterestInput(false) }}
+              />
+            </div>
+          ) : (
+            <button className="profile-tag profile-tag-add" onClick={() => setShowInterestInput(true)}>
+              + Добавить
+            </button>
+          )}
+        </div>
+      </section>
+
+      <section className="profile-section">
+        <div className="profile-section-title">Контакты</div>
+        <div className="profile-contacts">
+
+          <div className="profile-contact-row">
+            <span className="profile-contact-icon">✈️</span>
+            <span className="profile-contact-label">Telegram</span>
+            <span className="profile-contact-value">
+              {user?.username ? `@${user.username}` : 'подключён'}
+            </span>
+          </div>
+
+          {showInstagram ? (
+            <div className="profile-contact-row">
+              <span className="profile-contact-icon">📸</span>
+              <span className="profile-contact-label">Instagram</span>
+              {editing === 'instagram' ? (
+                <input
+                  className="profile-edit-input profile-edit-input--inline"
+                  value={profile.instagram}
+                  autoFocus
+                  placeholder="username"
+                  onChange={e => setProfile({ ...profile, instagram: e.target.value })}
+                  onBlur={() => save('instagram', profile.instagram)}
+                  onKeyDown={e => e.key === 'Enter' && save('instagram', profile.instagram)}
+                />
+              ) : (
+                <span
+                  className="profile-contact-value profile-editable"
+                  onClick={() => setEditing('instagram')}
+                >
+                  {profile.instagram ? `@${profile.instagram}` : 'не указан'}
+                  <span className="edit-hint"> ✏️</span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <button className="profile-contact-row profile-contact-add" onClick={() => setShowInstagram(true)}>
+              <span className="profile-contact-icon">📸</span>
+              <span className="profile-contact-label">Добавить Instagram</span>
+              <span className="profile-contact-value" style={{ color: 'var(--accent)' }}>+</span>
+            </button>
+          )}
+
+        </div>
+      </section>
+
     </div>
   )
 }
