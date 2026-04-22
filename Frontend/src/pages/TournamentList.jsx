@@ -17,9 +17,10 @@ export default function TournamentList({ user }) {
     <div className="page">
     {screen === 'create' && (
         <CreateTournament
-          onBack={() => setScreen('list')}
-          onCreated={() => { setScreen('list'); loadTournaments() }}
-        />
+  user={user}
+  onBack={() => setScreen('list')}
+  onCreated={() => { setScreen('list'); loadTournaments() }}
+/>
       )}
       {screen === 'list' && (
         <>
@@ -35,7 +36,7 @@ export default function TournamentList({ user }) {
 
           <div className="list">
             {tournaments.map(t => (
-              <TournamentCard key={t.id} tournament={t} />
+              <TournamentCard key={t.id} tournament={t} user={user} />
             ))}
             {tournaments.length === 0 && (
               <div className="empty">Пока нет турниров. Создай первый!</div>
@@ -80,7 +81,7 @@ const handleJoin = async () => {
   )
 }
 
-function CreateTournament({ onBack, onCreated }) {
+function CreateTournament({ user, onBack, onCreated }) {
   const [form, setForm] = useState({
     title: '', venueName: '', venueAddress: '',
     dateTime: '', price: '', maxPlayers: '8'
@@ -101,7 +102,7 @@ function CreateTournament({ onBack, onCreated }) {
         ...form,
         price: Number(form.price),
         maxPlayers: Number(form.maxPlayers),
-        organizerId: 1
+        organizerId: user.id
       })
     })
     onCreated()
