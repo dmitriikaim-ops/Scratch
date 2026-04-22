@@ -22,7 +22,15 @@ await app.register(cors, {
 })
 
 await app.register(jwt, { secret: process.env.JWT_SECRET })
-
+app.addHook('preParsing', async (request, reply) => {
+  if (request.method === 'OPTIONS') {
+    reply.header('Access-Control-Allow-Origin', request.headers.origin || '*')
+    reply.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS')
+    reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning')
+    reply.header('Access-Control-Allow-Credentials', 'true')
+    reply.status(204).send()
+  }
+})
 await app.register(authRoutes,       { prefix: '/auth' })
 await app.register(tournamentRoutes, { prefix: '/tournaments' })
 await app.register(userRoutes,       { prefix: '/users' })
