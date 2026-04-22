@@ -1,67 +1,154 @@
-import { db } from '../db/client.js'
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  backend/src/routes/users.js                                 ║
+// ╚══════════════════════════════════════════════════════════════╝
+//
+// Этот файл обрабатывает запросы фронтенда о пользователях.
+// Подключается в index.js через: fastify.register(usersRoutes)
+//
+// КАК РАБОТАЕТ МАРШРУТ (route):
+//   Фронтенд делает запрос → Fastify смотрит какой маршрут подходит
+//   → вызывает нашу функцию → мы идём в БД → возвращаем JSON
+
+import { eq, desc } from 'drizzle-orm'
 import { users, tournaments, participations } from '../db/schema.js'
-import { eq, and, gte } from 'drizzle-orm'
-import { requireAuth } from '../middleware/auth.js'
 
-export default async function userRoutes(app) {
+export default async function usersRoutes(fastify) {
 
-  // GET /users/me — мой профиль (нужен токен)
-  app.get('/me', { preHandler: requireAuth }, async (request, reply) => {
-    const { userId } = request.user
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId)
-    })
-    return user
+  // ──────────────────────────────────────────────────────────────
+  // МАРШРУТ 1: GET /users/me
+  // Отдаёт профиль ТЕКУЩЕГО пользователя (по JWT токену)
+  //
+  // Фронтенд в App.jsx вызывает fetchMe() — это запрос сюда.
+  // preHandler: [fastify.authenticate] — middleware, который проверяет
+  // JWT токен из заголовка Authorization. Если токен невалидный — 401.
+  // ──────────────────────────────────────────────────────────────
+  fastify.get('/users/me', {
+    preHandler: [fastify.authenticate]
+  }, async (request, reply) => {
+    // request.user.id — это ID пользователя из JWT токена.
+    // Токен создаётся в auth.js при входе и хранится у фронтенда.
+    const userId = request.user.id
+
+    try {
+      // Ищем пользователя в таблице users по его внутреннему id
+      // eq(users.id, userId) → SQL: WHERE id = userId
+      const user = await fastify.db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)    // нам нужна только 1 запись
+
+      if (user.length === 0) {
+        return reply.status(404).send({ error: 'Пользователь не найден' })
+      }
+
+      // user — это массив, берём первый (и единственный) элемент
+      return reply.send(user[0])
+
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.status(500).send({ error: 'Ошибка сервера' })
+    }
   })
 
-  // GET /users/:id — профиль любого игрока (публичный)
-  app.get('/:id', async (request, reply) => {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, Number(request.params.id))
-    })
-    if (!user) return reply.status(404).send({ error: 'Пользователь не найден' })
-    return user
+
+  // ──────────────────────────────────────────────────────────────
+  // МАРШРУТ 2: GET /users/:id/tournaments
+  // Отдаёт историю турниров пользователя
+  //
+  // :id — это "параметр" в URL. Если запрос /users/42/tournaments,
+  // то request.params.id будет строкой "42"
+  // ──────────────────────────────────────────────────────────────
+  fastify.get('/users/:id/tournaments', {
+    preHandler: [fastify.authenticate]
+  }, async (request, reply) => {
+    const userId = Number(request.params.id)
+    // Number() превращает строку "42" в число 42
+
+    try {
+      // Делаем JOIN двух таблиц: participations + tournaments
+      //
+      // JOIN — это SQL операция, которая объединяет данные из двух таблиц.
+      // Например: participations.tournament_id = 5 → берём турнир с id=5
+      //
+      // Drizzle ORM позволяет делать JOIN так:
+      const result = await fastify.db
+        .select({
+          // Выбираем нужные поля из таблицы tournaments
+          id:          tournaments.id,
+          title:       tournaments.title,
+          venueName:   tournaments.venueName,
+          dateTime:    tournaments.dateTime,
+          // И статус из таблицы participations
+          status:      participations.status,
+          joinedAt:    participations.joinedAt,
+        })
+        .from(participations)
+        // innerJoin — "объедини с таблицей tournaments по условию"
+        // participations.tournamentId === tournaments.id
+        .innerJoin(tournaments, eq(participations.tournamentId, tournaments.id))
+        // Фильтруем: только записи этого пользователя
+        .where(eq(participations.userId, userId))
+        // Сортируем: сначала самые новые записи
+        .orderBy(desc(participations.joinedAt))
+
+      return reply.send(result)
+
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.status(500).send({ error: 'Ошибка сервера' })
+    }
   })
 
-  // GET /users/me/participations — мои записи на турниры
-app.get('/me/participations', { preHandler: requireAuth }, async (request, reply) => {
-  const { userId } = request.user
 
-  const rows = await db
-    .select({
-      participationId: participations.id,
-      status:          participations.status,
-      joinedAt:        participations.joinedAt,
-      tournamentId:    tournaments.id,
-      title:           tournaments.title,
-      venueName:       tournaments.venueName,
-      dateTime:        tournaments.dateTime,
-      tournamentStatus: tournaments.status,
-    })
-    .from(participations)
-    .innerJoin(tournaments, eq(participations.tournamentId, tournaments.id))
-   .where(
-and(
-eq(participations.userId, userId),
-    gte(tournaments.dateTime, new Date())
-  )
-)
-    .orderBy(tournaments.dateTime)
+  // ──────────────────────────────────────────────────────────────
+  // МАРШРУТ 3: PATCH /users/me
+  // Обновляет профиль текущего пользователя
+  //
+  // PATCH — это HTTP метод для частичного обновления.
+  // Отличие от PUT: PUT заменяет весь объект, PATCH — только указанные поля.
+  // Используется когда пользователь редактирует bio, instagram, age.
+  // ──────────────────────────────────────────────────────────────
+  fastify.patch('/users/me', {
+    preHandler: [fastify.authenticate]
+  }, async (request, reply) => {
+    const userId = request.user.id
 
-  return rows
- })
+    // Достаём только разрешённые поля из тела запроса.
+    // Деструктуризация: берём нужные поля из объекта request.body
+    const { bio, age, instagram } = request.body
 
-// PATCH /users/me — обновить профиль
-app.patch('/me', { preHandler: requireAuth }, async (request, reply) => {
-  const { userId } = request.user
-  const { firstName, bio, age, instagram } = request.body
+    // Собираем объект с полями для обновления.
+    // Мы обновляем только то, что пришло в запросе (не undefined).
+    // Это позволяет отправить только { bio: "текст" } и не трогать остальное.
+    const updateData = {}
+    if (bio       !== undefined) updateData.bio       = bio
+    if (age       !== undefined) updateData.age       = age
+    if (instagram !== undefined) updateData.instagram = instagram
 
-  const [updated] = await db
-    .update(users)
-    .set({ firstName, bio, age, instagram })
-    .where(eq(users.id, userId))
-    .returning()
+    // Если нечего обновлять — отвечаем ошибкой
+    if (Object.keys(updateData).length === 0) {
+      return reply.status(400).send({ error: 'Нет данных для обновления' })
+    }
 
-  return updated
-})
+    try {
+      // UPDATE users SET bio=..., age=... WHERE id=userId
+      const updated = await fastify.db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, userId))
+        .returning()  // returning() возвращает обновлённую запись
+
+      if (updated.length === 0) {
+        return reply.status(404).send({ error: 'Пользователь не найден' })
+      }
+
+      return reply.send(updated[0])
+
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.status(500).send({ error: 'Ошибка сервера' })
+    }
+  })
+
 }
