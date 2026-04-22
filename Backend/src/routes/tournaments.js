@@ -71,22 +71,64 @@ app.post('/', async (request, reply) => {
     return reply.status(201).send(tournament)
   })
 
-  // POST /tournaments/:id/join — записаться
-    app.post('/:id/join', async (request, reply) => {
-    const userId = request.body.userId || 1
-    const tournamentId = Number(request.params.id)
+// POST /tournaments/:id/join — записаться
+app.post('/:id/join', async (request, reply) => {
+  const userId = request.body.userId || 1
+  const tournamentId = Number(request.params.id)
 
-    const existing = await db.query.participations.findFirst({
-      where: (p, { and }) => and(eq(p.tournamentId, tournamentId), eq(p.userId, userId))
-    })
-    if (existing) return reply.status(400).send({ error: 'Ты уже записан' })
-
-    const [participation] = await db.insert(participations).values({
-      tournamentId, userId
-    }).returning()
-
-    return reply.status(201).send(participation)
+  const existing = await db.query.participations.findFirst({
+    where: (p, { and }) => and(eq(p.tournamentId, tournamentId), eq(p.userId, userId))
   })
+  if (existing) return reply.status(400).send({ error: 'Ты уже записан' })
+
+  const [participation] = await db.insert(participations).values({
+    tournamentId, userId
+  }).returning()
+
+  // ── Уведомление организатору ──────────────────────────────
+  // Делаем это после записи — асинхронно, не блокируя ответ
+  try {
+    // Достаём турнир чтобы узнать кто организатор
+    const tournament = await db.query.tournaments.findFirst({
+      where: eq(tournaments.id, tournamentId)
+    })
+
+    if (tournament) {
+      // Достаём данные организатора — нам нужен его telegramId
+      const { users } = await import('../db/schema.js')
+      const organizer = await db.query.users.findFirst({
+        where: eq(users.id, tournament.organizerId)
+      })
+
+      // Достаём данные того кто записался — чтобы написать имя в уведомлении
+      const newParticipant = await db.query.users.findFirst({
+        where: eq(users.id, userId)
+      })
+
+      if (organizer?.telegramId && organizer.id !== userId) {
+        // organizer.id !== userId — не уведомляем если организатор записался сам на себя
+        const name = newParticipant?.firstName || newParticipant?.username || 'Кто-то'
+        const username = newParticipant?.username ? ` (@${newParticipant.username})` : ''
+        const count = await db.query.participations.findMany({
+          where: eq(participations.tournamentId, tournamentId)
+        })
+
+        await sendTelegramNotification(
+          organizer.telegramId,
+          `🎱 <b>${name}${username}</b> записался на твой турнир!\n\n` +
+          `<b>${tournament.title}</b>\n` +
+          `📍 ${tournament.venueName}\n` +
+          `👥 Участников: ${count.length} / ${tournament.maxPlayers}`
+        )
+      }
+    }
+  } catch (e) {
+    console.error('Ошибка при отправке уведомления:', e)
+  }
+  // ─────────────────────────────────────────────────────────
+
+  return reply.status(201).send(participation)
+})
 
 // PATCH /tournaments/participations/:id/cancel — отменить запись
 app.patch('/participations/:id/cancel', { preHandler: requireAuth }, async (request, reply) => {
@@ -101,4 +143,26 @@ app.patch('/participations/:id/cancel', { preHandler: requireAuth }, async (requ
   if (!updated) return reply.status(404).send({ error: 'Запись не найдена' })
   return updated
 })
+}
+// Отправляет сообщение в Telegram через Bot API
+// chatId — это telegramId организатора (строка вида "123456789")
+async function sendTelegramNotification(chatId, text) {
+  const token = process.env.BOT_TOKEN
+  if (!token || !chatId) return // если нет токена или chatId — молча пропускаем
+
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML' // позволяет использовать <b>жирный</b> текст
+      })
+    })
+  } catch (e) {
+    console.error('Ошибка отправки уведомления в Telegram:', e)
+    // Не бросаем ошибку дальше — если уведомление не дошло,
+    // запись на турнир всё равно должна сохраниться
+  }
 }
