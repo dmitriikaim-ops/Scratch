@@ -4,7 +4,7 @@ import { apiFetch } from '../api/auth.js'
 export default function TournamentList({ user }) {
   const [tournaments, setTournaments] = useState([])
   const [screen, setScreen]           = useState('list')
-  const [selected, setSelected]       = useState(null) // турнир открытый в модалке
+  const [selected, setSelected]       = useState(null)
 
   const loadTournaments = useCallback(() => {
     apiFetch('/tournaments').then(r => r.json()).then(setTournaments)
@@ -17,7 +17,6 @@ export default function TournamentList({ user }) {
   return (
     <div className="page">
 
-      {/* ── Экран создания турнира ── */}
       {screen === 'create' && (
         <CreateTournament
           user={user}
@@ -26,7 +25,6 @@ export default function TournamentList({ user }) {
         />
       )}
 
-      {/* ── Лента турниров ── */}
       {screen === 'list' && (
         <>
           <header className="header">
@@ -44,7 +42,7 @@ export default function TournamentList({ user }) {
                 key={t.id}
                 tournament={t}
                 user={user}
-                onOpen={() => setSelected(t)} // открываем модалку по нажатию на карточку
+                onOpen={() => setSelected(t)}
               />
             ))}
             {tournaments.length === 0 && (
@@ -52,14 +50,12 @@ export default function TournamentList({ user }) {
             )}
           </div>
 
-          {/* ── Модальное окно турнира ── */}
-          {/* Показываем только если selected не null */}
           {selected && (
             <TournamentModal
               tournament={selected}
               user={user}
               onClose={() => setSelected(null)}
-              onJoined={loadTournaments} // обновляем счётчик после записи
+              onJoined={loadTournaments}
             />
           )}
         </>
@@ -75,26 +71,18 @@ function TournamentCard({ tournament: t, user, onOpen }) {
   const date = new Date(t.dateTime).toLocaleDateString('ru-RU', {
     day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
   })
-
   const isFull = t.participantsCount >= t.maxPlayers
 
   return (
     <div className="card" onClick={onOpen} style={{ cursor: 'pointer' }}>
       <div className="card-title">
         {t.title}
-        {/* Бейдж — показываем если пользователь уже записан */}
         {t.isJoined && (
           <span style={{
-            marginLeft: 8,
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#1DB954',
-            border: '1px solid #1DB954',
-            borderRadius: 20,
-            padding: '2px 8px',
-          }}>
-            ✓ Иду
-          </span>
+            marginLeft: 8, fontSize: 11, fontWeight: 600,
+            color: '#1DB954', border: '1px solid #1DB954',
+            borderRadius: 20, padding: '2px 8px',
+          }}>✓ Иду</span>
         )}
       </div>
       <div className="card-venue">{t.venueName}</div>
@@ -113,21 +101,17 @@ function TournamentCard({ tournament: t, user, onOpen }) {
 // ─────────────────────────────────────────────
 // Модальное окно турнира
 // ─────────────────────────────────────────────
-// Открывается снизу поверх ленты.
-// Загружает полные данные турнира включая участников с профилями.
 function TournamentModal({ tournament, user, onClose, onJoined }) {
-  const [detail, setDetail]   = useState(null)  // полные данные с участниками
+  const [detail, setDetail]   = useState(null)
   const [loading, setLoading] = useState(true)
   const [joined, setJoined]   = useState(false)
-  const [joining, setJoining] = useState(false) // идёт ли запрос записи
+  const [joining, setJoining] = useState(false)
 
-  // Загружаем полные данные турнира когда модалка открылась
   useEffect(() => {
     apiFetch(`/tournaments/${tournament.id}`)
       .then(r => r.json())
       .then(data => {
         setDetail(data)
-        // Проверяем — не записан ли уже текущий пользователь
         const alreadyJoined = data.participants?.some(
           p => p.userId === user?.id && p.status !== 'cancelled'
         )
@@ -145,8 +129,7 @@ function TournamentModal({ tournament, user, onClose, onJoined }) {
         body: JSON.stringify({ userId: user.id })
       })
       setJoined(true)
-      onJoined() // обновляем счётчик в ленте
-      // Перезагружаем участников чтобы новый участник появился сразу
+      onJoined()
       const updated = await apiFetch(`/tournaments/${tournament.id}`).then(r => r.json())
       setDetail(updated)
     } catch (e) {
@@ -159,109 +142,66 @@ function TournamentModal({ tournament, user, onClose, onJoined }) {
   const date = new Date(tournament.dateTime).toLocaleDateString('ru-RU', {
     day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
   })
-
-  const isFull = detail
-    ? detail.participantsCount >= detail.maxPlayers
-    : false
-
-  // Организатор — участник у которого userId совпадает с organizerId турнира
-  const organizer = detail?.participants?.find(
-    p => p.userId === detail.organizerId
-  )
-  // Остальные участники без организатора
+  const isFull = detail ? detail.participantsCount >= detail.maxPlayers : false
+  const organizer = detail?.participants?.find(p => p.userId === detail.organizerId)
   const others = detail?.participants?.filter(
     p => p.userId !== detail.organizerId && p.status !== 'cancelled'
   ) || []
 
   return (
     <>
-      {/* Затемнение фона — клик закрывает модалку */}
       <div onClick={onClose} style={styles.overlay} />
-
-      {/* Само модальное окно */}
       <div style={styles.modal}>
-
-        {/* Кнопка закрыть */}
         <button onClick={onClose} style={styles.closeBtn}>✕</button>
-
-        {/* Скролл внутри модалки */}
         <div style={styles.modalScroll}>
-
-          {/* ── Название и мета ── */}
           <div style={styles.modalTitle}>{tournament.title}</div>
-
           <div style={styles.metaRow}>
             <span style={styles.metaItem}>📍 {tournament.venueName}</span>
             <span style={styles.metaItem}>📅 {date}</span>
           </div>
-
           <div style={styles.metaRow}>
             <span style={styles.metaItem}>
               💰 {tournament.price > 0 ? `${tournament.price} ₽` : 'Бесплатно'}
             </span>
-            <span style={{
-              ...styles.metaItem,
-              color: isFull ? '#888' : 'var(--accent)'
-            }}>
+            <span style={{ ...styles.metaItem, color: isFull ? '#888' : 'var(--accent)' }}>
               👥 {detail?.participantsCount ?? '...'} / {tournament.maxPlayers}
             </span>
           </div>
-
-          {/* ── Описание от организатора ── */}
           {detail?.description && (
-            <div style={styles.description}>
-              {detail.description}
-            </div>
+            <div style={styles.description}>{detail.description}</div>
           )}
-
           {loading ? (
             <div style={styles.loadingText}>Загрузка участников...</div>
           ) : (
             <>
-              {/* ── Организатор ── */}
               {organizer && (
                 <div style={styles.section}>
                   <div style={styles.sectionTitle}>ОРГАНИЗАТОР</div>
                   <ParticipantRow participant={organizer} isOrganizer />
                 </div>
               )}
-
-              {/* ── Участники ── */}
               <div style={styles.section}>
                 <div style={styles.sectionTitle}>
                   УЧАСТНИКИ {others.length > 0 && `· ${others.length}`}
                 </div>
                 {others.length === 0 ? (
-                  <div style={styles.emptyText}>
-                    Пока никого нет. Будь первым! 🎱
-                  </div>
+                  <div style={styles.emptyText}>Пока никого нет. Будь первым! 🎱</div>
                 ) : (
-                  others.map(p => (
-                    <ParticipantRow key={p.participationId} participant={p} />
-                  ))
+                  others.map(p => <ParticipantRow key={p.participationId} participant={p} />)
                 )}
               </div>
             </>
           )}
         </div>
-
-        {/* ── Кнопка записи — всегда внизу ── */}
         <div style={styles.footer}>
           <button
-            style={{
-              ...styles.joinBtn,
-              ...(joined || isFull ? styles.joinBtnDisabled : {})
-            }}
+            style={{ ...styles.joinBtn, ...(joined || isFull ? styles.joinBtnDisabled : {}) }}
             onClick={handleJoin}
             disabled={joined || isFull || joining || !user?.id}
           >
-            {joining ? 'Записываемся...'
-              : joined ? '✓ Ты записан'
-              : isFull ? 'Мест нет'
-              : 'Записаться'}
+            {joining ? 'Записываемся...' : joined ? '✓ Ты записан' : isFull ? 'Мест нет' : 'Записаться'}
           </button>
         </div>
-
       </div>
     </>
   )
@@ -273,7 +213,6 @@ function TournamentModal({ tournament, user, onClose, onJoined }) {
 function ParticipantRow({ participant: p, isOrganizer }) {
   return (
     <div style={styles.participantRow}>
-      {/* Аватар */}
       {p.avatarUrl ? (
         <img src={p.avatarUrl} alt={p.firstName} style={styles.avatar} />
       ) : (
@@ -281,19 +220,12 @@ function ParticipantRow({ participant: p, isOrganizer }) {
           {(p.firstName || p.username || '?')[0].toUpperCase()}
         </div>
       )}
-
-      {/* Имя и bio */}
       <div style={styles.participantInfo}>
         <div style={styles.participantName}>
           {p.firstName || p.username || 'Игрок'}
-          {isOrganizer && (
-            <span style={styles.organizerBadge}>орг</span>
-          )}
+          {isOrganizer && <span style={styles.organizerBadge}>орг</span>}
         </div>
-        {p.bio && (
-          <div style={styles.participantBio}>{p.bio}</div>
-        )}
-        {/* Интересы */}
+        {p.bio && <div style={styles.participantBio}>{p.bio}</div>}
         {p.interests?.length > 0 && (
           <div style={styles.tagsRow}>
             {p.interests.slice(0, 3).map((tag, i) => (
@@ -301,15 +233,9 @@ function ParticipantRow({ participant: p, isOrganizer }) {
             ))}
           </div>
         )}
-        {/* Telegram */}
         {p.username && (
-          <a
-            href={`https://t.me/${p.username}`}
-            target="_blank"
-            rel="noreferrer"
-            style={styles.tgLink}
-            onClick={e => e.stopPropagation()}
-          >
+          <a href={`https://t.me/${p.username}`} target="_blank" rel="noreferrer"
+            style={styles.tgLink} onClick={e => e.stopPropagation()}>
             ✈️ @{p.username}
           </a>
         )}
@@ -319,11 +245,181 @@ function ParticipantRow({ participant: p, isOrganizer }) {
 }
 
 // ─────────────────────────────────────────────
-// Форма создания турнира
+// VenuePicker — выбор клуба из базы
+// ─────────────────────────────────────────────
+// Как работает:
+// 1. При открытии загружает список клубов с /venues
+// 2. Пользователь вводит текст — список фильтруется в реальном времени
+// 3. При выборе клуба — name и address передаются наверх через onSelect
+// 4. Кнопка «Другое место» позволяет ввести вручную
+function VenuePicker({ onSelect }) {
+  const [venues, setVenues]       = useState([])       // все клубы из БД
+  const [query, setQuery]         = useState('')        // что вводит пользователь
+  const [selected, setSelected]   = useState(null)     // выбранный клуб
+  const [isCustom, setIsCustom]   = useState(false)    // режим ручного ввода
+  const [customName, setCustomName]       = useState('')
+  const [customAddress, setCustomAddress] = useState('')
+  const [open, setOpen]           = useState(false)    // открыт ли дропдаун
+
+  // Загружаем клубы один раз
+  useEffect(() => {
+    apiFetch('/venues')
+      .then(r => r.json())
+      .then(data => setVenues(Array.isArray(data) ? data : []))
+      .catch(() => setVenues([]))
+  }, [])
+
+  // Фильтрация по названию и району
+  const filtered = venues.filter(v =>
+    v.name.toLowerCase().includes(query.toLowerCase()) ||
+    (v.district || '').toLowerCase().includes(query.toLowerCase())
+  )
+
+  // Выбор клуба из списка
+  const handleSelect = (venue) => {
+    setSelected(venue)
+    setQuery(venue.name)
+    setOpen(false)
+    setIsCustom(false)
+    onSelect({ venueName: venue.name, venueAddress: venue.address, venueId: venue.id })
+  }
+
+  // Переключение в режим ручного ввода
+  const handleCustom = () => {
+    setIsCustom(true)
+    setSelected(null)
+    setOpen(false)
+    setQuery('')
+    onSelect({ venueName: '', venueAddress: '', venueId: null })
+  }
+
+  // Обновление при ручном вводе
+  const handleCustomChange = (field, value) => {
+    const updated = {
+      customName:    field === 'name'    ? value : customName,
+      customAddress: field === 'address' ? value : customAddress,
+    }
+    if (field === 'name')    setCustomName(value)
+    if (field === 'address') setCustomAddress(value)
+    onSelect({ venueName: updated.customName, venueAddress: updated.customAddress, venueId: null })
+  }
+
+  // Вернуться к выбору из списка
+  const handleBackToList = () => {
+    setIsCustom(false)
+    setSelected(null)
+    setQuery('')
+    setCustomName('')
+    setCustomAddress('')
+    onSelect({ venueName: '', venueAddress: '', venueId: null })
+  }
+
+  if (isCustom) {
+    return (
+      <div>
+        <div className="form-group">
+          <label className="form-label">Название места</label>
+          <input
+            placeholder="Например: Бар Стрелка"
+            value={customName}
+            onChange={e => handleCustomChange('name', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Адрес</label>
+          <input
+            placeholder="ул. Рубинштейна, 15"
+            value={customAddress}
+            onChange={e => handleCustomChange('address', e.target.value)}
+          />
+        </div>
+        <button
+          onClick={handleBackToList}
+          style={venueStyles.backLink}
+        >
+          ← Выбрать из списка клубов
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div className="form-group">
+        <label className="form-label">Клуб / место проведения</label>
+
+        {/* Поле ввода с поиском */}
+        <div style={venueStyles.inputWrap}>
+          <input
+            placeholder="Начни вводить название клуба..."
+            value={query}
+            onChange={e => {
+              setQuery(e.target.value)
+              setOpen(true)
+              setSelected(null)
+              onSelect({ venueName: e.target.value, venueAddress: '', venueId: null })
+            }}
+            onFocus={() => setOpen(true)}
+            style={selected ? { ...venueStyles.selectedInput } : {}}
+          />
+          {/* Иконка галочки если выбран клуб */}
+          {selected && (
+            <span style={venueStyles.checkIcon}>✓</span>
+          )}
+        </div>
+
+        {/* Адрес выбранного клуба */}
+        {selected && (
+          <div style={venueStyles.selectedAddress}>
+            📍 {selected.address}
+          </div>
+        )}
+      </div>
+
+      {/* Дропдаун со списком */}
+      {open && query.length >= 0 && (
+        <div style={venueStyles.dropdown}>
+
+          {filtered.length === 0 && (
+            <div style={venueStyles.dropdownEmpty}>
+              Клуб не найден
+            </div>
+          )}
+
+          {filtered.map(venue => (
+            <div
+              key={venue.id}
+              style={venueStyles.dropdownItem}
+              onClick={() => handleSelect(venue)}
+            >
+              <div style={venueStyles.dropdownName}>{venue.name}</div>
+              <div style={venueStyles.dropdownMeta}>
+                {venue.district && <span style={venueStyles.district}>{venue.district}</span>}
+                <span style={venueStyles.dropdownAddress}>{venue.address}</span>
+              </div>
+            </div>
+          ))}
+
+          {/* Разделитель и кнопка «другое место» */}
+          <div style={venueStyles.dropdownDivider} />
+          <div
+            style={{ ...venueStyles.dropdownItem, ...venueStyles.customOption }}
+            onClick={handleCustom}
+          >
+            ✏️ Другое место (ввести вручную)
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Форма создания турнира — с VenuePicker
 // ─────────────────────────────────────────────
 function CreateTournament({ user, onBack, onCreated }) {
   const [form, setForm] = useState({
-    title: '', venueName: '', venueAddress: '',
+    title: '', venueName: '', venueAddress: '', venueId: null,
     dateTime: '', price: '', maxPlayers: '8', description: ''
   })
 
@@ -331,9 +427,14 @@ function CreateTournament({ user, onBack, onCreated }) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
+  // Вызывается из VenuePicker когда пользователь выбрал клуб
+  const handleVenueSelect = ({ venueName, venueAddress, venueId }) => {
+    setForm(prev => ({ ...prev, venueName, venueAddress, venueId }))
+  }
+
   const handleSubmit = async () => {
     if (!form.title || !form.venueName || !form.dateTime) {
-      alert('Заполни название, бар и дату!')
+      alert('Заполни название, клуб и дату!')
       return
     }
     if (!user?.id) {
@@ -344,8 +445,8 @@ function CreateTournament({ user, onBack, onCreated }) {
       method: 'POST',
       body: JSON.stringify({
         ...form,
-        price:      Number(form.price),
-        maxPlayers: Number(form.maxPlayers),
+        price:       Number(form.price),
+        maxPlayers:  Number(form.maxPlayers),
         organizerId: user.id
       })
     })
@@ -362,20 +463,27 @@ function CreateTournament({ user, onBack, onCreated }) {
       <div className="form">
         <div className="form-group">
           <label className="form-label">Название турнира</label>
-          <input name="title" placeholder="Открытый турнир на Рубинштейна" value={form.title} onChange={handleChange} />
+          <input
+            name="title"
+            placeholder="Открытый турнир на Рубинштейна"
+            value={form.title}
+            onChange={handleChange}
+          />
         </div>
-        <div className="form-group">
-          <label className="form-label">Название бара</label>
-          <input name="venueName" placeholder="Бар Стрелка" value={form.venueName} onChange={handleChange} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Адрес</label>
-          <input name="venueAddress" placeholder="ул. Рубинштейна 15" value={form.venueAddress} onChange={handleChange} />
-        </div>
+
+        {/* VenuePicker заменяет два поля: «Название бара» и «Адрес» */}
+        <VenuePicker onSelect={handleVenueSelect} />
+
         <div className="form-group">
           <label className="form-label">Дата и время</label>
-          <input name="dateTime" type="datetime-local" value={form.dateTime} onChange={handleChange} />
+          <input
+            name="dateTime"
+            type="datetime-local"
+            value={form.dateTime}
+            onChange={handleChange}
+          />
         </div>
+
         <div style={{ display: 'flex', gap: '12px' }}>
           <div className="form-group" style={{ flex: 1 }}>
             <label className="form-label">Взнос (₽)</label>
@@ -386,7 +494,7 @@ function CreateTournament({ user, onBack, onCreated }) {
             <input name="maxPlayers" placeholder="8" value={form.maxPlayers} onChange={handleChange} />
           </div>
         </div>
-        {/* Поле описания — кого ищу, уровень, детали */}
+
         <div className="form-group">
           <label className="form-label">Описание (кого ищу, уровень игры...)</label>
           <textarea
@@ -396,20 +504,14 @@ function CreateTournament({ user, onBack, onCreated }) {
             onChange={handleChange}
             rows={3}
             style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              padding: '12px 14px',
-              color: 'var(--text)',
-              fontSize: '14px',
-              outline: 'none',
-              resize: 'none',
-              fontFamily: 'inherit',
-              width: '100%',
-              boxSizing: 'border-box'
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: '10px', padding: '12px 14px', color: 'var(--text)',
+              fontSize: '14px', outline: 'none', resize: 'none',
+              fontFamily: 'inherit', width: '100%', boxSizing: 'border-box'
             }}
           />
         </div>
+
         <button className="btn-submit" onClick={handleSubmit}>Создать турнир</button>
       </div>
     </div>
@@ -417,193 +519,189 @@ function CreateTournament({ user, onBack, onCreated }) {
 }
 
 // ─────────────────────────────────────────────
-// Стили модального окна
-// (инлайн, чтобы не трогать styles.css)
+// Стили VenuePicker
 // ─────────────────────────────────────────────
-const styles = {
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    zIndex: 200,
+const venueStyles = {
+  inputWrap: {
+    position: 'relative',
   },
-  modal: {
-    position: 'fixed',
-    bottom: 0,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '100%',
-    maxWidth: 480,
-    background: '#1a1a1a',
-    borderRadius: '20px 20px 0 0',
-    borderTop: '1px solid #2a2a2a',
-    zIndex: 201,
-    maxHeight: '85vh',
-    display: 'flex',
-    flexDirection: 'column',
+  selectedInput: {
+    borderColor: '#1DB954',
+    color: '#fff',
   },
-  closeBtn: {
+  checkIcon: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    background: '#2a2a2a',
-    border: 'none',
+    right: 14,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    color: '#1DB954',
+    fontSize: 16,
+    pointerEvents: 'none',
+  },
+  selectedAddress: {
+    marginTop: 6,
+    fontSize: 12,
     color: '#888',
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
+    paddingLeft: 2,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    background: '#1e1e1e',
+    border: '1px solid #2a2a2a',
+    borderRadius: 12,
+    zIndex: 100,
+    maxHeight: 280,
+    overflowY: 'auto',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+    marginTop: -8,
+  },
+  dropdownItem: {
+    padding: '12px 14px',
     cursor: 'pointer',
+    borderBottom: '1px solid #2a2a2a',
+    transition: 'background 0.15s',
+  },
+  dropdownName: {
     fontSize: 14,
+    fontWeight: 600,
+    color: '#fff',
+    marginBottom: 3,
+  },
+  dropdownMeta: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
-  modalScroll: {
-    overflowY: 'auto',
-    padding: '24px 16px 8px',
-    flex: 1,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#fff',
-    marginBottom: 12,
-    paddingRight: 40, // чтобы не налезало на кнопку закрыть
-  },
-  metaRow: {
-    display: 'flex',
-    gap: 16,
-    marginBottom: 6,
-  },
-  metaItem: {
-    fontSize: 13,
-    color: '#888',
-  },
-  description: {
-    marginTop: 14,
-    padding: '12px 14px',
-    background: '#111',
-    borderRadius: 10,
-    fontSize: 14,
-    color: '#ccc',
-    lineHeight: 1.6,
-    borderLeft: '2px solid #1DB954',
-  },
-  section: {
-    marginTop: 20,
-  },
-  sectionTitle: {
+  district: {
     fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: '1.5px',
-    color: '#666',
-    marginBottom: 10,
+    color: '#1DB954',
+    border: '1px solid rgba(29,185,84,0.3)',
+    borderRadius: 20,
+    padding: '1px 7px',
+    background: 'rgba(29,185,84,0.08)',
+    flexShrink: 0,
   },
-  loadingText: {
-    marginTop: 20,
+  dropdownAddress: {
+    fontSize: 12,
+    color: '#666',
+  },
+  dropdownEmpty: {
+    padding: '14px',
     fontSize: 13,
     color: '#666',
     textAlign: 'center',
   },
-  emptyText: {
-    fontSize: 13,
-    color: '#666',
-    padding: '12px 0',
+  dropdownDivider: {
+    height: 1,
+    background: '#333',
+    margin: '4px 0',
   },
+  customOption: {
+    fontSize: 13,
+    color: '#888',
+    fontStyle: 'italic',
+    borderBottom: 'none',
+  },
+  backLink: {
+    background: 'none',
+    border: 'none',
+    color: '#1DB954',
+    fontSize: 13,
+    cursor: 'pointer',
+    padding: '4px 0',
+    marginTop: 4,
+  },
+}
+
+// ─────────────────────────────────────────────
+// Стили модального окна
+// ─────────────────────────────────────────────
+const styles = {
+  overlay: {
+    position: 'fixed', inset: 0,
+    background: 'rgba(0,0,0,0.6)', zIndex: 200,
+  },
+  modal: {
+    position: 'fixed', bottom: 0,
+    left: '50%', transform: 'translateX(-50%)',
+    width: '100%', maxWidth: 480,
+    background: '#1a1a1a',
+    borderRadius: '20px 20px 0 0',
+    borderTop: '1px solid #2a2a2a',
+    zIndex: 201, maxHeight: '85vh',
+    display: 'flex', flexDirection: 'column',
+  },
+  closeBtn: {
+    position: 'absolute', top: 16, right: 16,
+    background: '#2a2a2a', border: 'none', color: '#888',
+    width: 32, height: 32, borderRadius: '50%',
+    cursor: 'pointer', fontSize: 14,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  modalScroll: {
+    overflowY: 'auto', padding: '24px 16px 8px', flex: 1,
+  },
+  modalTitle: {
+    fontSize: 20, fontWeight: 700, color: '#fff',
+    marginBottom: 12, paddingRight: 40,
+  },
+  metaRow: { display: 'flex', gap: 16, marginBottom: 6 },
+  metaItem: { fontSize: 13, color: '#888' },
+  description: {
+    marginTop: 14, padding: '12px 14px',
+    background: '#111', borderRadius: 10,
+    fontSize: 14, color: '#ccc', lineHeight: 1.6,
+    borderLeft: '2px solid #1DB954',
+  },
+  section: { marginTop: 20 },
+  sectionTitle: {
+    fontSize: 11, fontWeight: 600,
+    letterSpacing: '1.5px', color: '#666', marginBottom: 10,
+  },
+  loadingText: { marginTop: 20, fontSize: 13, color: '#666', textAlign: 'center' },
+  emptyText: { fontSize: 13, color: '#666', padding: '12px 0' },
   participantRow: {
-    display: 'flex',
-    gap: 12,
-    paddingBottom: 14,
-    marginBottom: 14,
+    display: 'flex', gap: 12,
+    paddingBottom: 14, marginBottom: 14,
     borderBottom: '1px solid #2a2a2a',
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: '50%',
-    objectFit: 'cover',
-    flexShrink: 0,
-    border: '1px solid #2a2a2a',
+    width: 48, height: 48, borderRadius: '50%',
+    objectFit: 'cover', flexShrink: 0, border: '1px solid #2a2a2a',
   },
   avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: '50%',
-    background: '#2a2a2a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#1DB954',
-    flexShrink: 0,
+    width: 48, height: 48, borderRadius: '50%',
+    background: '#2a2a2a', display: 'flex',
+    alignItems: 'center', justifyContent: 'center',
+    fontSize: 20, fontWeight: 700, color: '#1DB954', flexShrink: 0,
   },
-  participantInfo: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
+  participantInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: 4 },
   participantName: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
+    fontSize: 15, fontWeight: 600, color: '#fff',
+    display: 'flex', alignItems: 'center', gap: 6,
   },
   organizerBadge: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: '#1DB954',
-    border: '1px solid #1DB954',
-    borderRadius: 20,
-    padding: '1px 6px',
-    letterSpacing: '0.5px',
+    fontSize: 10, fontWeight: 600, color: '#1DB954',
+    border: '1px solid #1DB954', borderRadius: 20,
+    padding: '1px 6px', letterSpacing: '0.5px',
   },
-  participantBio: {
-    fontSize: 13,
-    color: '#888',
-    lineHeight: 1.5,
-  },
-  tagsRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginTop: 2,
-  },
+  participantBio: { fontSize: 13, color: '#888', lineHeight: 1.5 },
+  tagsRow: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 },
   tag: {
-    fontSize: 11,
-    color: '#1DB954',
+    fontSize: 11, color: '#1DB954',
     border: '1px solid rgba(29,185,84,0.4)',
-    borderRadius: 20,
-    padding: '2px 8px',
+    borderRadius: 20, padding: '2px 8px',
     background: 'rgba(29,185,84,0.07)',
   },
-  tgLink: {
-    fontSize: 12,
-    color: '#4A9EFF',
-    textDecoration: 'none',
-    marginTop: 2,
-  },
-  footer: {
-    padding: '12px 16px 28px',
-    borderTop: '1px solid #2a2a2a',
-  },
+  tgLink: { fontSize: 12, color: '#4A9EFF', textDecoration: 'none', marginTop: 2 },
+  footer: { padding: '12px 16px 28px', borderTop: '1px solid #2a2a2a' },
   joinBtn: {
-    width: '100%',
-    background: '#1DB954',
-    color: '#000',
-    border: 'none',
-    borderRadius: 12,
-    padding: '14px',
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: 'pointer',
+    width: '100%', background: '#1DB954', color: '#000',
+    border: 'none', borderRadius: 12, padding: '14px',
+    fontSize: 15, fontWeight: 600, cursor: 'pointer',
   },
-  joinBtnDisabled: {
-    background: '#2a2a2a',
-    color: '#666',
-    cursor: 'default',
-  },
+  joinBtnDisabled: { background: '#2a2a2a', color: '#666', cursor: 'default' },
 }
