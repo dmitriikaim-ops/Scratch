@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { apiFetch } from '../api/auth.js'
 
-export default function Profile({ user }) {
+export default function Profile({ user, onUserUpdate }) {
   const [profile, setProfile] = useState({
     firstName: user?.firstName  || '',
     bio:       user?.bio        || '',
@@ -15,24 +15,29 @@ export default function Profile({ user }) {
   const [newInterest, setNewInterest] = useState('')
   const [showInterestInput, setShowInterestInput] = useState(false)
 
-  const save = async (field, value) => {
-    const updated = { ...profile, [field]: value }
-    setProfile(updated)
-    setEditing(null)
-    try {
-      await apiFetch('/users/me', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          firstName: updated.firstName,
-          bio:       updated.bio,
-          age:       updated.age ? Number(updated.age) : null,
-          instagram: updated.instagram || null,
-        })
+const save = async (field, value) => {
+  const updated = { ...profile, [field]: value }
+  setProfile(updated)
+  setEditing(null)
+  try {
+    const res = await apiFetch('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        firstName: updated.firstName,
+        bio:       updated.bio,
+        age:       updated.age ? Number(updated.age) : null,
+        instagram: updated.instagram || null,
       })
-    } catch (e) {
-      console.error('Ошибка сохранения', e)
+    })
+    // Обновляем user в App.jsx чтобы данные не терялись при смене вкладки
+    if (res.ok) {
+      const savedUser = await res.json()
+      onUserUpdate(savedUser)
     }
+  } catch (e) {
+    console.error('Ошибка сохранения', e)
   }
+}
 
   const addInterest = () => {
     const tag = newInterest.trim()

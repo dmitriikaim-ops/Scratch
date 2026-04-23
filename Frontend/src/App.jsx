@@ -49,7 +49,7 @@ if (result.token) {
       {/* ── Контент: меняется в зависимости от tab ── */}
 {tab === 'tournaments' && <TournamentList user={user} key={tab} />}
 {tab === 'bookings' && <Bookings user={user} />}
-      {tab === 'profile' && <Profile user={user} />}
+      {tab === 'profile' && <Profile user={user} onUserUpdate={setUser} />}
 
       {/* ── Нижняя навигация (теперь живёт здесь, а не в TournamentList) ── */}
       {/* Важно: мы убрали навигацию из TournamentList.jsx и перенесли сюда */}
