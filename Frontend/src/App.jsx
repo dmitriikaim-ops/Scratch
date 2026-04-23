@@ -47,8 +47,8 @@ if (result.token) {
     <div>
 
       {/* ── Контент: меняется в зависимости от tab ── */}
-      {tab === 'tournaments' && <TournamentList user={user} />}
-      {tab === 'bookings' && <Bookings user={user} />}
+{tab === 'tournaments' && <TournamentList user={user} key={tab} />}
+{tab === 'bookings' && <Bookings user={user} />}
       {tab === 'profile' && <Profile user={user} />}
 
       {/* ── Нижняя навигация (теперь живёт здесь, а не в TournamentList) ── */}
