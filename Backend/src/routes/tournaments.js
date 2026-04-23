@@ -7,6 +7,15 @@ export default async function tournamentRoutes(app) {
 
   // GET /tournaments — лента открытых турниров
 app.get('/', async (request, reply) => {
+  // Пробуем получить userId из токена — но не требуем его обязательно
+  let currentUserId = null
+  try {
+    await request.jwtVerify()
+    currentUserId = request.user.userId
+  } catch (_) {
+    // токена нет — это нормально, просто не знаем кто смотрит
+  }
+
   const list = await db.query.tournaments.findMany({
     where: eq(tournaments.status, 'open'),
     orderBy: [desc(tournaments.dateTime)],
@@ -17,7 +26,13 @@ app.get('/', async (request, reply) => {
     const parts = await db.query.participations.findMany({
       where: eq(participations.tournamentId, t.id)
     })
-    return { ...t, participantsCount: parts.length }
+
+    // Проверяем записан ли текущий пользователь
+    const isJoined = currentUserId
+      ? parts.some(p => p.userId === currentUserId && p.status !== 'cancelled')
+      : false
+
+    return { ...t, participantsCount: parts.length, isJoined }
   }))
 
   return withCounts

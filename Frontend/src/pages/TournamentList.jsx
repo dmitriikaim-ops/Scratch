@@ -79,9 +79,24 @@ function TournamentCard({ tournament: t, user, onOpen }) {
   const isFull = t.participantsCount >= t.maxPlayers
 
   return (
-    // Вся карточка кликабельна — открывает модалку
     <div className="card" onClick={onOpen} style={{ cursor: 'pointer' }}>
-      <div className="card-title">{t.title}</div>
+      <div className="card-title">
+        {t.title}
+        {/* Бейдж — показываем если пользователь уже записан */}
+        {t.isJoined && (
+          <span style={{
+            marginLeft: 8,
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#1DB954',
+            border: '1px solid #1DB954',
+            borderRadius: 20,
+            padding: '2px 8px',
+          }}>
+            ✓ Иду
+          </span>
+        )}
+      </div>
       <div className="card-venue">{t.venueName}</div>
       <div className="card-meta">
         <span>{date}</span>
