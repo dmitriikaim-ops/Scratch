@@ -11,17 +11,32 @@ config()
 
 const app = Fastify({ logger: true })
 
-// CORS должен быть зарегистрирован первым — до всех роутов
+// ← 1. Сначала этот парсер — он должен быть до всего
+app.addContentTypeParser('application/json', { parseAs: 'string' }, function (req, body, done) {
+  if (body === '') {
+    done(null, {})  // пустое тело → пустой объект, не падаем
+    return
+  }
+  try {
+    done(null, JSON.parse(body))
+  } catch (err) {
+    done(err)
+  }
+})
+
+// ← 2. Потом плагины
 await app.register(cors, {
   origin: ['https://scratch-eight-theta.vercel.app', 'https://scratch-nn6a.vercel.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   credentials: true,
-  preflight: true,        // ← явно разрешаем preflight OPTIONS запросы
-  strictPreflight: false, // ← не требуем строгой проверки preflight
+  preflight: true,
+  strictPreflight: false,
 })
 
 await app.register(jwt, { secret: process.env.JWT_SECRET })
+
+// ← 3. Потом хук для OPTIONS
 app.addHook('preParsing', async (request, reply) => {
   if (request.method === 'OPTIONS') {
     reply.header('Access-Control-Allow-Origin', request.headers.origin || '*')
@@ -31,6 +46,8 @@ app.addHook('preParsing', async (request, reply) => {
     reply.status(204).send()
   }
 })
+
+// ← 4. Потом роуты
 await app.register(authRoutes,       { prefix: '/auth' })
 await app.register(tournamentRoutes, { prefix: '/tournaments' })
 await app.register(userRoutes,       { prefix: '/users' })
