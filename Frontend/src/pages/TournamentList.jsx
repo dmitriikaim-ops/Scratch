@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiFetch } from '../api/auth.js'
 
 export default function TournamentList({ user }) {
   const [tournaments, setTournaments] = useState([])
   const [screen, setScreen]           = useState('list')
   const [selected, setSelected]       = useState(null)
+  const [search, setSearch]           = useState('')
+  
 
   const loadTournaments = useCallback(() => {
     apiFetch('/tournaments').then(r => r.json()).then(setTournaments)
@@ -13,6 +15,15 @@ export default function TournamentList({ user }) {
   useEffect(() => {
     loadTournaments()
   }, [loadTournaments])
+
+  const filtered = tournaments.filter(t => {
+   if (!search.trim()) return true
+   const q = search.toLowerCase()
+   return (
+     t.venueName?.toLowerCase().includes(q) ||
+     t.title?.toLowerCase().includes(q)
+   )
+  })
 
   return (
     <div className="page">
@@ -33,21 +44,28 @@ export default function TournamentList({ user }) {
           </header>
 
           <div className="search">
-            <input placeholder="Поиск по барам и датам..." />
+            <input
+              placeholder="Поиск по барам и названию..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+          />
           </div>
 
           <div className="list">
-            {tournaments.map(t => (
+            {filtered.map(t => (
               <TournamentCard
                 key={t.id}
                 tournament={t}
                 user={user}
                 onOpen={() => setSelected(t)}
-              />
+               />
             ))}
-            {tournaments.length === 0 && (
-              <div className="empty">Пока нет турниров. Создай первый!</div>
-            )}
+            {filtered.length === 0 && tournaments.length > 0 && (
+             <div className="empty">Ничего не найдено 🔍</div>
+             )}
+             {tournaments.length === 0 && (
+                <div className="empty">Пока нет турниров. Создай первый!</div>
+              )}
           </div>
 
           {selected && (
@@ -253,15 +271,28 @@ function ParticipantRow({ participant: p, isOrganizer }) {
 // 3. При выборе клуба — name и address передаются наверх через onSelect
 // 4. Кнопка «Другое место» позволяет ввести вручную
 function VenuePicker({ onSelect }) {
-  const [venues, setVenues]       = useState([])       // все клубы из БД
-  const [query, setQuery]         = useState('')        // что вводит пользователь
-  const [selected, setSelected]   = useState(null)     // выбранный клуб
-  const [isCustom, setIsCustom]   = useState(false)    // режим ручного ввода
+  const [venues, setVenues]     = useState([])
+  const [query, setQuery]       = useState('')
+  const [selected, setSelected] = useState(null)
+  const [isCustom, setIsCustom] = useState(false)
   const [customName, setCustomName]       = useState('')
   const [customAddress, setCustomAddress] = useState('')
-  const [open, setOpen]           = useState(false)    // открыт ли дропдаун
+  const [open, setOpen]         = useState(false)
 
-  // Загружаем клубы один раз
+  // ← НОВОЕ: ref на весь контейнер пикера
+  const containerRef = useRef(null)
+
+  // ← НОВОЕ: закрываем дропдаун если клик вне контейнера
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   useEffect(() => {
     apiFetch('/venues')
       .then(r => r.json())
@@ -269,13 +300,11 @@ function VenuePicker({ onSelect }) {
       .catch(() => setVenues([]))
   }, [])
 
-  // Фильтрация по названию и району
   const filtered = venues.filter(v =>
     v.name.toLowerCase().includes(query.toLowerCase()) ||
     (v.district || '').toLowerCase().includes(query.toLowerCase())
   )
 
-  // Выбор клуба из списка
   const handleSelect = (venue) => {
     setSelected(venue)
     setQuery(venue.name)
@@ -284,7 +313,6 @@ function VenuePicker({ onSelect }) {
     onSelect({ venueName: venue.name, venueAddress: venue.address, venueId: venue.id })
   }
 
-  // Переключение в режим ручного ввода
   const handleCustom = () => {
     setIsCustom(true)
     setSelected(null)
@@ -293,7 +321,15 @@ function VenuePicker({ onSelect }) {
     onSelect({ venueName: '', venueAddress: '', venueId: null })
   }
 
-  // Обновление при ручном вводе
+  const handleBackToList = () => {
+    setIsCustom(false)
+    setSelected(null)
+    setQuery('')
+    setCustomName('')
+    setCustomAddress('')
+    onSelect({ venueName: '', venueAddress: '', venueId: null })
+  }
+
   const handleCustomChange = (field, value) => {
     const updated = {
       customName:    field === 'name'    ? value : customName,
@@ -302,16 +338,6 @@ function VenuePicker({ onSelect }) {
     if (field === 'name')    setCustomName(value)
     if (field === 'address') setCustomAddress(value)
     onSelect({ venueName: updated.customName, venueAddress: updated.customAddress, venueId: null })
-  }
-
-  // Вернуться к выбору из списка
-  const handleBackToList = () => {
-    setIsCustom(false)
-    setSelected(null)
-    setQuery('')
-    setCustomName('')
-    setCustomAddress('')
-    onSelect({ venueName: '', venueAddress: '', venueId: null })
   }
 
   if (isCustom) {
@@ -333,10 +359,7 @@ function VenuePicker({ onSelect }) {
             onChange={e => handleCustomChange('address', e.target.value)}
           />
         </div>
-        <button
-          onClick={handleBackToList}
-          style={venueStyles.backLink}
-        >
+        <button onClick={handleBackToList} style={venueStyles.backLink}>
           ← Выбрать из списка клубов
         </button>
       </div>
@@ -344,11 +367,10 @@ function VenuePicker({ onSelect }) {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    // ← НОВОЕ: containerRef на корневой div
+    <div style={{ position: 'relative' }} ref={containerRef}>
       <div className="form-group">
         <label className="form-label">Клуб / место проведения</label>
-
-        {/* Поле ввода с поиском */}
         <div style={venueStyles.inputWrap}>
           <input
             placeholder="Начни вводить название клуба..."
@@ -360,15 +382,10 @@ function VenuePicker({ onSelect }) {
               onSelect({ venueName: e.target.value, venueAddress: '', venueId: null })
             }}
             onFocus={() => setOpen(true)}
-            style={selected ? { ...venueStyles.selectedInput } : {}}
+            style={selected ? venueStyles.selectedInput : {}}
           />
-          {/* Иконка галочки если выбран клуб */}
-          {selected && (
-            <span style={venueStyles.checkIcon}>✓</span>
-          )}
+          {selected && <span style={venueStyles.checkIcon}>✓</span>}
         </div>
-
-        {/* Адрес выбранного клуба */}
         {selected && (
           <div style={venueStyles.selectedAddress}>
             📍 {selected.address}
@@ -376,22 +393,13 @@ function VenuePicker({ onSelect }) {
         )}
       </div>
 
-      {/* Дропдаун со списком */}
-      {open && query.length >= 0 && (
+      {open && (
         <div style={venueStyles.dropdown}>
-
           {filtered.length === 0 && (
-            <div style={venueStyles.dropdownEmpty}>
-              Клуб не найден
-            </div>
+            <div style={venueStyles.dropdownEmpty}>Клуб не найден</div>
           )}
-
           {filtered.map(venue => (
-            <div
-              key={venue.id}
-              style={venueStyles.dropdownItem}
-              onClick={() => handleSelect(venue)}
-            >
+            <div key={venue.id} style={venueStyles.dropdownItem} onClick={() => handleSelect(venue)}>
               <div style={venueStyles.dropdownName}>{venue.name}</div>
               <div style={venueStyles.dropdownMeta}>
                 {venue.district && <span style={venueStyles.district}>{venue.district}</span>}
@@ -399,8 +407,6 @@ function VenuePicker({ onSelect }) {
               </div>
             </div>
           ))}
-
-          {/* Разделитель и кнопка «другое место» */}
           <div style={venueStyles.dropdownDivider} />
           <div
             style={{ ...venueStyles.dropdownItem, ...venueStyles.customOption }}
