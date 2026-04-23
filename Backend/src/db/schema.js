@@ -22,6 +22,7 @@ export const tournaments = pgTable('tournaments', {
   title:        text('title').notNull(),
   venueName:    text('venue_name').notNull(),
   venueAddress: text('venue_address'),
+  venueId:      integer('venue_id'), 
   organizerId:  integer('organizer_id').notNull(),
   dateTime:     timestamp('date_time').notNull(),
   price:        integer('price').default(0),
@@ -51,6 +52,14 @@ export const matches = pgTable('matches', {
   winnerId:        integer('winner_id'),
   confirmedByBoth: boolean('confirmed_by_both').default(false),
   playedAt:        timestamp('played_at'),
+})
+
+export const venues = pgTable('venues', {
+  id:       serial('id').primaryKey(),
+  name:     text('name').notNull(),
+  address:  text('address').notNull(),
+  district: text('district'),
+  isActive: boolean('is_active').default(true),
 })
 
 // Связи между таблицами (нужны для with: { user: true } в запросах)

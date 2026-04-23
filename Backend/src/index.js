@@ -6,6 +6,7 @@ import { config } from 'dotenv'
 import authRoutes from './routes/auth.js'
 import tournamentRoutes from './routes/tournaments.js'
 import userRoutes from './routes/users.js'
+import venueRoutes from './routes/venues.js' 
 
 config()
 
@@ -51,6 +52,7 @@ app.addHook('preParsing', async (request, reply) => {
 await app.register(authRoutes,       { prefix: '/auth' })
 await app.register(tournamentRoutes, { prefix: '/tournaments' })
 await app.register(userRoutes,       { prefix: '/users' })
+await app.register(venueRoutes, { prefix: '/venues' })	
 
 const port = process.env.PORT || 3000
 await app.listen({ port, host: '0.0.0.0' })
