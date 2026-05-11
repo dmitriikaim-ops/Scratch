@@ -23,7 +23,7 @@ export default async function tournamentRoutes(app) {
     })
 
     const withCounts = await Promise.all(list.map(async (t) => {
-      const parts = await db.query.participations.findMany({
+      const parts = await db.query.participations.  findMany({
         where: eq(participations.tournamentId, t.id)
       })
 
@@ -88,6 +88,20 @@ export default async function tournamentRoutes(app) {
   app.post('/:id/join', async (request, reply) => {
     const userId = request.body.userId || 1
     const tournamentId = Number(request.params.id)
+    // Проверка подписки
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId)
+    })
+
+    const now = new Date()
+    const hasAccess =
+      user.subscriptionType === 'lifetime' ||
+      (user.subscriptionType === 'monthly' && user.subscriptionUntil && user.subscriptionUntil > now) ||
+      (user.subscriptionType === 'free' && user.participationsUsed < 3)
+
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'paywall' })
+    }
 
     // Ищем существующую активную запись
     const existing = await db.query.participations.findFirst({
@@ -123,6 +137,13 @@ export default async function tournamentRoutes(app) {
         tournamentId, userId
       }).returning()
       participation = newP
+    }
+    // Инкрементируем счётчик для free пользователей
+    if (user.subscriptionType === 'free') {
+      await db
+        .update(users)
+        .set({ participationsUsed: user.participationsUsed + 1 })
+        .where(eq(users.id, userId))
     }
 
     // ── Уведомления — делаем после записи, не блокируем ответ ──
