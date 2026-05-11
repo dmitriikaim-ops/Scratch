@@ -1,5 +1,6 @@
-import { pgTable, serial, text, integer, timestamp, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, serial, text, integer, timestamp, boolean, pgEnum } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
+export const subscriptionTypeEnum = pgEnum('subscription_type', ['free', 'monthly', 'lifetime'])
 
 // Таблица пользователей
 export const users = pgTable('users', {
@@ -14,6 +15,9 @@ export const users = pgTable('users', {
   age:         integer('age'),
   instagram:   text('instagram'),
   createdAt:   timestamp('created_at').defaultNow(),
+  subscriptionType:   subscriptionTypeEnum('subscription_type').default('free'),
+  subscriptionUntil:  timestamp('subscription_until'),
+  participationsUsed: integer('participations_used').default(0),
 })
 
 // Таблица турниров
